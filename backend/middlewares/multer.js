@@ -1,17 +1,21 @@
+// middlewares/multer.js
 import multer from "multer";
 import path from "path";
+import fs from "fs";
+
+const publicDir = path.join(process.cwd(), "public");
+
+// ensure public dir exists
+if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), "public"));
+    cb(null, publicDir);
   },
   filename: (req, file, cb) => {
-    // generate unique filename
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
+    cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "-"));
   },
 });
 
-const upload = multer({ storage });
+export const upload = multer({ storage });
 export default upload;

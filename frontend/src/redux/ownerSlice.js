@@ -1,7 +1,8 @@
+// src/redux/ownerSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-  myShopData: null,
+  myShopData: null,   // holds shop info + items
   loading: false,
   error: null,
 };
@@ -12,6 +13,14 @@ const ownerSlice = createSlice({
   reducers: {
     setMyShopData: (state, action) => {
       state.myShopData = action.payload;
+      state.error = null;
+    },
+    addItemToShop: (state, action) => {
+      if (state.myShopData) {
+        state.myShopData.items = state.myShopData.items
+          ? [...state.myShopData.items, action.payload]
+          : [action.payload];
+      }
       state.error = null;
     },
     setLoading: (state, action) => {
@@ -28,5 +37,7 @@ const ownerSlice = createSlice({
   },
 });
 
-export const { setMyShopData, setLoading, setError, clearShopData } = ownerSlice.actions;
+export const { setMyShopData, addItemToShop, setLoading, setError, clearShopData } =
+  ownerSlice.actions;
+
 export default ownerSlice.reducer;

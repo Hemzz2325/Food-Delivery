@@ -1,3 +1,4 @@
+// utils/mail.js
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
@@ -10,7 +11,6 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL,
     pass: process.env.PASS,
   },
-  // dev only: avoid in production
   tls: {
     rejectUnauthorized: false,
   },
@@ -32,3 +32,5 @@ export const sendOtpMail = async (to, subject, text, html) => {
     throw error;
   }
 };
+
+export default sendOtpMail;

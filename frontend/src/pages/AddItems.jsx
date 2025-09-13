@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { IoIosArrowBack } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
 import { FaUtensils, FaCheckCircle } from "react-icons/fa";
@@ -19,13 +19,24 @@ const AddItem = () => {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [foodtype, setFoodtype] = useState("veg");
-  const [frontEndImage, setFrontEndImage] = useState(null);
-  const [backendImage, setBackendImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
 
   const categories = [
-    "breakfast", "lunch", "dinner", "snacks", "drinks",
-    "south Indian", "North Indian", "panjabi", "chinees",
-    "juices", "Desserts", "sandwich", "burger", "pizzas"
+    "Breakfast",
+    "Lunch",
+    "Dinner",
+    "Snacks",
+    "Drinks",
+    "South Indian",
+    "North Indian",
+    "Punjabi",
+    "Chinese",
+    "Juices",
+    "Desserts",
+    "Sandwich",
+    "Burger",
+    "Pizzas",
   ];
 
   useEffect(() => {
@@ -42,19 +53,19 @@ const AddItem = () => {
     const errors = {};
     if (!name.trim()) errors.name = "Food name is required";
     if (!category.trim()) errors.category = "Category is required";
-    if (!price || price <= 0) errors.price = "Valid price is required";
-    if (!foodtype) errors.foodtype = "Food type is required";
-    if (!backendImage) errors.image = "Image is required";
-
+    if (!price || Number(price) <= 0) errors.price = "Valid price is required";
+    if (!imageFile) errors.image = "Image is required";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleImage = (e) => {
-    const file = e.target.files[0];
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      setBackendImage(file);
-      setFrontEndImage(URL.createObjectURL(file));
+      setImageFile(file);
+      setPreviewImage(URL.createObjectURL(file));
+      if (formErrors.image)
+        setFormErrors((prev) => ({ ...prev, image: null }));
     }
   };
 
@@ -77,9 +88,9 @@ const AddItem = () => {
       formData.append("name", name.trim());
       formData.append("category", category);
       formData.append("foodtype", foodtype);
-      formData.append("price", price);
-      formData.append("shop", myShopData._id); // ✅ include shop ID
-      formData.append("image", backendImage); // ✅ include File object
+      formData.append("price", Number(price));
+      formData.append("shop", myShopData._id);
+      formData.append("image", imageFile);
 
       const result = await axios.post(
         `${serverUrl}/api/item/add-item`,
@@ -90,14 +101,20 @@ const AddItem = () => {
         }
       );
 
-      dispatch(setMyShopData(result.data.shop || result.data));
+      dispatch(
+        setMyShopData({
+          ...myShopData,
+          items: [...(myShopData.items || []), result.data.item],
+        })
+      );
       setSuccess(true);
+
       setName("");
       setPrice("");
       setCategory("");
       setFoodtype("veg");
-      setFrontEndImage(null);
-      setBackendImage(null);
+      setPreviewImage(null);
+      setImageFile(null);
     } catch (err) {
       const errorMessage =
         err.response?.data?.message ||
@@ -110,52 +127,61 @@ const AddItem = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6] relative">
+    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-gradient-to-b from-orange-50 to-white relative">
+      {/* Back Button */}
       <button
         onClick={() => navigate("/")}
-        className="absolute top-6 left-6 flex items-center gap-1 text-red-600 font-medium hover:text-red-700"
+        className="absolute top-6 left-6 flex items-center gap-1 text-red-600 font-medium hover:text-red-700 transition-colors"
       >
         <IoIosArrowBack size={22} />
         <span>Back</span>
       </button>
 
-      <div className="max-w-lg w-full bg-white shadow-xl rounded-2xl p-8 border border-orange-100 mt-12">
+      {/* Card */}
+      <div className="max-w-lg w-full bg-white shadow-xl rounded-2xl p-8 border border-orange-200 mt-12">
+        {/* Icon */}
         <div className="bg-orange-100 p-6 rounded-full w-24 h-24 flex items-center justify-center mx-auto -mt-16 shadow-md">
           <FaUtensils className="text-red-500 w-12 h-12" />
         </div>
 
-        <h2 className="text-2xl font-bold text-center text-gray-800 mt-6">
-          Add Food
+        <h2 className="text-3xl font-bold text-center text-gray-800 mt-6">
+          Add New Food Item
         </h2>
-        <p className="text-gray-600 text-center mt-2">
-          Fill in your food details below.
+        <p className="text-gray-500 text-center mt-2">
+          Fill in the details below to add your dish
         </p>
 
+        {/* Success & Error */}
         {success && (
-          <div className="flex items-center justify-center gap-2 bg-green-100 text-green-800 p-3 rounded-lg mt-4">
+          <div className="flex items-center justify-center gap-2 bg-green-100 text-green-800 p-3 rounded-lg mt-4 animate-fade-in">
             <FaCheckCircle />
             <span>Item added successfully! Redirecting...</span>
           </div>
         )}
         {error && (
-          <div className="bg-red-100 text-red-800 p-3 rounded-lg mt-4 text-center">
+          <div className="bg-red-100 text-red-800 p-3 rounded-lg mt-4 text-center animate-fade-in">
             {error}
           </div>
         )}
 
-        <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
-          {/* Food Name */}
+        {/* Form */}
+        <form className="space-y-5 mt-6" onSubmit={handleSubmit}>
+          {/* Name */}
           <div>
-            <label className="block text-gray-700 font-medium mb-1">
+            <label className="block text-gray-700 font-semibold mb-1">
               Food Name
             </label>
             <input
               type="text"
-              className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
-                formErrors.name ? "border-red-500" : "border-neutral-300"
+              className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                formErrors.name ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Enter food name"
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (formErrors.name)
+                  setFormErrors((prev) => ({ ...prev, name: null }));
+              }}
               value={name}
               disabled={loading}
             />
@@ -166,14 +192,20 @@ const AddItem = () => {
 
           {/* Price */}
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Price</label>
+            <label className="block text-gray-700 font-semibold mb-1">
+              Price
+            </label>
             <input
               type="number"
-              className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
-                formErrors.price ? "border-red-500" : "border-neutral-300"
+              className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                formErrors.price ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Enter price"
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => {
+                setPrice(e.target.value);
+                if (formErrors.price)
+                  setFormErrors((prev) => ({ ...prev, price: null }));
+              }}
               value={price}
               disabled={loading}
             />
@@ -184,20 +216,24 @@ const AddItem = () => {
 
           {/* Category */}
           <div>
-            <label className="block text-gray-700 font-medium mb-1">
+            <label className="block text-gray-700 font-semibold mb-1">
               Select Category
             </label>
             <select
-              className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
-                formErrors.category ? "border-red-500" : "border-neutral-300"
+              className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                formErrors.category ? "border-red-500" : "border-gray-300"
               }`}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (formErrors.category)
+                  setFormErrors((prev) => ({ ...prev, category: null }));
+              }}
               value={category}
               disabled={loading}
             >
               <option value="">Select category</option>
-              {categories.map((cate, index) => (
-                <option value={cate} key={index}>
+              {categories.map((cate, idx) => (
+                <option value={cate} key={idx}>
                   {cate}
                 </option>
               ))}
@@ -209,13 +245,11 @@ const AddItem = () => {
 
           {/* Food Type */}
           <div>
-            <label className="block text-gray-700 font-medium mb-1">
+            <label className="block text-gray-700 font-semibold mb-1">
               Select Food Type
             </label>
             <select
-              className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
-                formErrors.foodtype ? "border-red-500" : "border-neutral-300"
-              }`}
+              className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 border-gray-300"
               onChange={(e) => setFoodtype(e.target.value)}
               value={foodtype}
               disabled={loading}
@@ -223,32 +257,29 @@ const AddItem = () => {
               <option value="veg">Veg</option>
               <option value="non-veg">Non-Veg</option>
             </select>
-            {formErrors.foodtype && (
-              <p className="text-red-500 text-sm mt-1">{formErrors.foodtype}</p>
-            )}
           </div>
 
-          {/* Image Upload */}
+          {/* Image */}
           <div>
-            <label className="block text-gray-700 font-medium mb-1">
+            <label className="block text-gray-700 font-semibold mb-1">
               Food Image
             </label>
             <input
               type="file"
               accept="image/*"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none border-neutral-300"
-              onChange={handleImage}
+              className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 border-gray-300"
+              onChange={handleImageChange}
               disabled={loading}
             />
             {formErrors.image && (
               <p className="text-red-500 text-sm mt-1">{formErrors.image}</p>
             )}
-            {frontEndImage && (
+            {previewImage && (
               <div className="mt-4">
                 <img
-                  src={frontEndImage}
+                  src={previewImage}
                   alt="Preview"
-                  className="w-full h-48 object-cover rounded-lg border"
+                  className="w-full h-48 object-cover rounded-lg border shadow-sm"
                 />
               </div>
             )}
@@ -258,7 +289,7 @@ const AddItem = () => {
           <button
             type="submit"
             disabled={loading || success}
-            className={`w-full font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-md flex items-center justify-center gap-2 ${
+            className={`w-full font-semibold py-3 px-6 rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${
               loading || success
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-red-500 hover:bg-red-600 cursor-pointer"

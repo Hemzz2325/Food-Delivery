@@ -1,142 +1,169 @@
-import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState } from "react";
+import { FaLocationDot, FaPlus } from "react-icons/fa6";
+import { FiSearch } from "react-icons/fi";
+import { FaShoppingCart } from "react-icons/fa";
+import { useSelector, useDispatch } from "react-redux";
+import { RxCross2 } from "react-icons/rx";
 import axios from "axios";
-import { setCity, setState, setAddress } from "../redux/userSlice.js";
+import { serverUrl } from "../config.js";
+import { FaReceipt } from "react-icons/fa";
+import { setUserData, clearUserData } from "../redux/userSlice.js";
 
-function useGetCity() {
+const Navbar = () => {
+  const { userData, city } = useSelector((state) => state.user);
+  const { myShopData } = useSelector((state) => state.owner);
+
+  const [showinfo, setShowinfo] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const dispatch = useDispatch();
-  const apiKey = import.meta.env.VITE_GEOAPIKEY;
 
-  useEffect(() => {
-    console.log("useGetCity: Hook started, API Key:", apiKey ? "Present" : "Missing");
-    
-    // If we previously resolved location, use cached value for instant UI on refresh
+  const handleLogout = async () => {
     try {
-      const cached = JSON.parse(localStorage.getItem("user_location"));
-      console.log("useGetCity: Cached location:", cached);
-      if (cached) {
-        if (cached.city) {
-          console.log("useGetCity: Setting cached city:", cached.city);
-          dispatch(setCity(cached.city));
-        }
-        if (cached.state) dispatch(setState(cached.state));
-        if (cached.address) dispatch(setAddress(cached.address));
-      }
-    } catch (e) {
-      console.error("useGetCity: Error parsing cached location:", e);
+      localStorage.removeItem("authToken");
+      dispatch(clearUserData());
+      await axios.post(`${serverUrl}/api/auth/signout`, {}, { withCredentials: true });
+      window.location.href = "/signin";
+    } catch (err) {
+      console.error("Logout Error:", err);
     }
+  };
 
-    // Helper to persist and dispatch
-    const applyLocation = (city, stateName, address) => {
-      console.log("useGetCity: Applying location:", { city, stateName, address });
-      if (city) dispatch(setCity(city));
-      if (stateName) dispatch(setState(stateName));
-      if (address) dispatch(setAddress(address));
-      try {
-        localStorage.setItem(
-          "user_location",
-          JSON.stringify({ city: city || null, state: stateName || null, address: address || null })
-        );
-        console.log("useGetCity: Location saved to localStorage");
-      } catch (e) {
-        console.error("useGetCity: Error saving to localStorage:", e);
-      }
-    };
+  return (
+    <div className="w-full fixed top-0 z-[50] bg-[#fff9f6] shadow">
+      {/* Top navbar row */}
+      <div className="h-[70px] flex items-center justify-between px-4 md:px-8">
+        {/* Left - Logo */}
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-red-500">
+          Country-Kitchen
+        </h1>
 
-    // Check if API key is available
-    if (!apiKey) {
-      console.error("useGetCity: API key is missing. Please check VITE_GEOAPIKEY environment variable.");
-      return;
-    }
+        {/* Middle - Search (desktop only) */}
+        <div className="hidden md:flex items-center w-[300px] md:w-[400px] lg:w-[500px] h-[50px] bg-white border border-gray-300 rounded-lg shadow px-3 gap-3">
+          <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
+            <FaLocationDot className="text-red-500" size={20} />
+            <span className="truncate text-sm">{city || "Select location"}</span>
+          </div>
 
-    // Try browser geolocation first
-    if (navigator?.geolocation) {
-      console.log("useGetCity: Requesting geolocation permission...");
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            console.log("useGetCity: Got coordinates:", { latitude, longitude });
-            
-            const url = `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${apiKey}`;
-            console.log("useGetCity: Making reverse geocoding request to:", url.replace(apiKey, "***"));
-            
-            const res = await axios.get(url);
-            console.log("useGetCity: Reverse geocoding response:", res.data);
-            
-            const props = res.data?.features?.[0]?.properties || {};
-            console.log("useGetCity: Extracted properties:", props);
-            
-            const city = props.city || props.town || props.village || props.municipality || props.county || null;
-            const stateName = props.state || props.state_code || null;
-            const address = props.formatted || props.display_name || props.address_line2 || props.address_line1 || null;
-            
-            console.log("useGetCity: Parsed location data:", { city, stateName, address });
-            
-            if (city || stateName || address) {
-              applyLocation(city, stateName, address);
-            } else {
-              console.warn("useGetCity: No usable location data found in response");
-              // Try IP fallback
-              await tryIPFallback();
-            }
-          } catch (err) {
-            console.error("useGetCity: Reverse geocoding error:", err?.response?.data || err?.message || err);
-            // fallback to IP-based lookup
-            await tryIPFallback();
-          }
-        },
-        async (err) => {
-          console.warn("useGetCity: Geolocation failed:", err?.message || err);
-          console.log("useGetCity: Error code:", err?.code, "- Message:", err?.message);
-          // On permission denied or other errors, try IP-based lookup
-          await tryIPFallback();
-        },
-        { 
-          enableHighAccuracy: true, 
-          timeout: 15000, // Increased timeout
-          maximumAge: 1000 * 60 * 5 
-        }
-      );
-    } else {
-      console.log("useGetCity: Geolocation not available in this browser");
-      // No geolocation available; fallback to IP lookup
-      await tryIPFallback();
-    }
+          {userData?.role === "user" && (
+            <div className="flex items-center flex-1 gap-2">
+              <FiSearch className="text-red-500" size={20} />
+              <input
+                className="flex-1 text-sm px-2 outline-none text-gray-600 placeholder-gray-400"
+                type="text"
+                placeholder="Search delicious foods"
+              />
+            </div>
+          )}
+        </div>
 
-    // IP fallback function
-    async function tryIPFallback() {
-      try {
-        console.log("useGetCity: Trying IP-based location...");
-        const ipUrl = `https://api.geoapify.com/v1/ipinfo?apiKey=${apiKey}`;
-        console.log("useGetCity: Making IP request to:", ipUrl.replace(apiKey, "***"));
-        
-        const ipRes = await axios.get(ipUrl);
-        console.log("useGetCity: IP response:", ipRes.data);
-        
-        const p = ipRes.data?.location || ipRes.data?.ip || {};
-        console.log("useGetCity: IP location data:", p);
-        
-        const city = p.city || null;
-        const stateName = p.state || p.region || null;
-        const address = p.formatted || `${p.city}, ${p.state}` || null;
-        
-        console.log("useGetCity: IP parsed location:", { city, stateName, address });
-        
-        if (city || stateName) {
-          applyLocation(city, stateName, address);
-        } else {
-          console.error("useGetCity: No location data available from IP lookup either");
-        }
-      } catch (ipErr) {
-        console.error("useGetCity: IP lookup error:", ipErr?.response?.data || ipErr?.message || ipErr);
-      }
-    }
-  }, [dispatch, apiKey]);
+        {/* Right - Actions */}
+        <div className="flex items-center gap-4">
+          {/* Mobile Search Toggle (only for user) */}
+          {userData?.role === "user" && (
+            <div className="md:hidden">
+              {showSearch ? (
+                <RxCross2
+                  size={22}
+                  className="cursor-pointer text-red-500"
+                  onClick={() => setShowSearch(false)}
+                />
+              ) : (
+                <FiSearch
+                  size={22}
+                  className="cursor-pointer text-red-500"
+                  onClick={() => setShowSearch(true)}
+                />
+              )}
+            </div>
+          )}
 
-  // Return nothing, this hook just manages side effects
-  return null;
-}
+          {/* Add Food Item (only for owner) */}
+          {userData?.role === "owner" && myShopData && (
+            <>
+              {/* Desktop Buttons */}
+              <button className="hidden md:flex items-center gap-2 px-3 py-2 rounded-full bg-red-500 text-white font-medium hover:bg-red-600">
+                <FaPlus size={18} />
+                <span className="text-sm">Add Food Item</span>
+              </button>
 
-export default useGetCity;
+              <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-white bg-[#ff4d2d] relative">
+                <FaReceipt />
+                <span>Pending Orders</span>
+                <span className="absolute -right-2 -top-2 text-xs font-semibold text-white bg-red-600 rounded-full px-[6px] py-[1px]">
+                  0
+                </span>
+              </div>
+
+              {/* Mobile Button */}
+              <button className="md:hidden flex items-center gap-2 px-3 py-2 rounded-full bg-red-500 text-white font-medium hover:bg-red-600">
+                <FaPlus size={18} />
+              </button>
+            </>
+          )}
+
+          {/* Cart & Orders (only for user) */}
+          {userData?.role === "user" && (
+            <>
+              <div className="relative cursor-pointer">
+                <FaShoppingCart size={22} className="text-red-500" />
+                <span className="absolute -right-2 -top-2 text-xs font-semibold text-red-600">
+                  0
+                </span>
+              </div>
+              <button className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg">
+                My Orders
+              </button>
+            </>
+          )}
+
+          {/* Avatar + Dropdown */}
+          <div className="relative">
+            <div
+              onClick={() => setShowinfo((prev) => !prev)}
+              className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center text-base font-semibold cursor-pointer"
+            >
+              {userData?.fullName?.slice(0, 1).toUpperCase() || "U"}
+            </div>
+
+            {showinfo && (
+              <div className="absolute right-0 mt-2 w-[180px] bg-white shadow-2xl rounded-lg p-4 border border-gray-300 z-[9999] flex flex-col gap-4">
+                {userData?.fullName && (
+                  <h2 className="text-lg font-semibold text-gray-700">
+                    Hello, {userData.fullName}
+                  </h2>
+                )}
+                <div className="text-red-600 font-semibold">My Orders</div>
+                <div
+                  className="text-red-600 font-semibold cursor-pointer"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Search Bar */}
+      {showSearch && userData?.role === "user" && (
+        <div className="md:hidden w-[90%] mx-auto mt-2 h-[50px] bg-white border border-gray-300 rounded-lg shadow flex items-center px-3 gap-3">
+          <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
+            <FaLocationDot className="text-red-500" size={20} />
+            <span className="truncate text-sm">{city || "Select location"}</span>
+          </div>
+          <div className="flex items-center flex-1 gap-2">
+            <FiSearch className="text-red-500" size={20} />
+            <input
+              className="flex-1 text-sm px-2 outline-none text-gray-600 placeholder-gray-400"
+              type="text"
+              placeholder="Search delicious foods"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Navbar;

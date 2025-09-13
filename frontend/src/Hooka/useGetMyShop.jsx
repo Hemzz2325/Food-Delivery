@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config.js";
+import { setMyShopData } from "../redux/ownerSlice.js";
 
 import { setUserData,clearUserData } from "../redux/userSlice.js";
 
@@ -18,12 +19,12 @@ function useGetMyshop() {
       }
 
       try {
-        const res = await axios.get(`${serverUrl}/api/shop/get-my`, {
+        const res = await axios.get(`${serverUrl}/api/shop/get-myShop`, {
           withCredentials: true,
         });
 
-        // save just the user object
-        dispatch(setmyShopData(res.data.user));
+        // save shop data
+        dispatch(setMyShopData(res.data.shop || res.data));
       } catch (err) {
         // handle 401 (unauthorized) quietly, other errors as warnings
         if (err.response?.status === 401) {

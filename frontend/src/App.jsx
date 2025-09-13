@@ -8,6 +8,7 @@ import { useSelector } from "react-redux";
 import useGetCity from "./Hooka/useGetCity";
 import useGetMyshop from "./Hooka/useGetMyShop";
 import Createeditshop from "./pages/Createeditshop";
+import AddItem from "./pages/AddItems";
 
 
 
@@ -38,6 +39,8 @@ function App() {
       <Route path="/" element={userData ? <Home /> : <Navigate to="/signin" />} />
 
        <Route path="/create-edit-shop" element={userData ? <Createeditshop /> : <Navigate to="/signin" />} />
+
+        <Route path="/add-item" element={userData ? <AddItem /> : <Navigate to="/signin" />} />
 
 
       {/* Catch-all */}

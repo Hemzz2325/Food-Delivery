@@ -1,23 +1,32 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const initialState = { userData: null, city: null };
+const initialState = {
+  myShopData: null,
+  loading: false,
+  error: null,
+};
 
 const ownerSlice = createSlice({
   name: "owner",
-  initialState:{
-    myShopData:null,
-    
-  },
+  initialState,
   reducers: {
-    setmyShopData: (state, action) => {
+    setMyShopData: (state, action) => {
       state.myShopData = action.payload;
+      state.error = null;
     },
-    
-    clearUserData: (state) => {
-      state.userData = null;
+    setLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
+      state.loading = false;
+    },
+    clearShopData: (state) => {
+      state.myShopData = null;
+      state.error = null;
     },
   },
 });
 
-export const { setUserData, setCity, clearUserData } = ownerSlice.actions;
-export default  ownerSlice.reducer;
+export const { setMyShopData, setLoading, setError, clearShopData } = ownerSlice.actions;
+export default ownerSlice.reducer;

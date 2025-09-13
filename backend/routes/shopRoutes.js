@@ -8,7 +8,7 @@ const shopRouter= express.Router()
 // Define user-related routes here, e.g. profile, update, delete, etc.
 
 shopRouter.post("/create-edit", isAuth, upload.single("image"), createandeditShop);
-shopRouter.get("/get-my", isAuth, getMyShop);
+shopRouter.get("/get-myShop", isAuth, getMyShop);
 
 
 export default shopRouter

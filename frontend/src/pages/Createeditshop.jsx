@@ -1,19 +1,125 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { IoIosArrowBack } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import { FaUtensils } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { FaUtensils, FaCheckCircle } from "react-icons/fa";
+import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
+import { serverUrl } from "../config";
+import { setMyShopData, setLoading, setError } from "../redux/ownerSlice";
+import { ClipLoader } from "react-spinners";
 
 const Createeditshop = () => {
   const navigate = useNavigate();
-  const { myShopData } = useSelector((state) => state.owner);
-  const { city: CurrentCity, state: CurrentState, address: CurrentAddress } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
+
+  const { myShopData, loading, error } = useSelector((store) => store.owner);
+  const {
+    city: CurrentCity,
+    state: CurrentState,
+    address: CurrentAddress,
+  } = useSelector((store) => store.user);
+
+  // Local states
+  const [success, setSuccess] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   const [name, setname] = useState(myShopData?.name || "");
-  const [address, setaddress] = useState(myShopData?.address || CurrentAddress || "");
+  const [address, setaddress] = useState(
+    myShopData?.address || CurrentAddress || ""
+  );
   const [city, setcity] = useState(myShopData?.city || CurrentCity || "");
-  const [state, setstate] = useState(myShopData?.state || CurrentState || "");
-  const [image, setimage] = useState(null);
+  const [shopState, setshopState] = useState(
+    myShopData?.state || CurrentState || ""
+  );
+  const [frontEndImage, setfrontEndImage] = useState(myShopData?.image || null);
+  const [backendImage, setbackendImage] = useState();
+
+  // Clear success message after 3 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess(false);
+        navigate("/"); // Navigate back to dashboard
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, navigate]);
+
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    if (!name.trim()) errors.name = "Shop name is required";
+    if (!address.trim()) errors.address = "Address is required";
+    if (!city.trim()) errors.city = "City is required";
+    if (!shopState.trim()) errors.state = "State is required";
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleImage = (e) => {
+    const file = e.target.files[0]; // ✅ correct
+    if (file) {
+      setbackendImage(file);
+      setfrontEndImage(URL.createObjectURL(file)); // ✅ preview
+    }
+  };
+
+  const handleSumbit = async (e) => {
+    e.preventDefault();
+
+    // Clear previous errors
+    dispatch(setError(null));
+    setFormErrors({});
+
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
+    dispatch(setLoading(true));
+
+    try {
+      const formData = new FormData();
+      formData.append("name", name.trim());
+      formData.append("city", city.trim());
+      formData.append("state", shopState.trim());
+      formData.append("address", address.trim());
+      if (backendImage) {
+        formData.append("image", backendImage);
+      }
+
+      const result = await axios.post(
+        `${serverUrl}/api/shop/create-edit`,
+        formData,
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      // Update shop data in Redux store
+      dispatch(setMyShopData(result.data.shop || result.data));
+
+      // Show success message
+      setSuccess(true);
+
+      console.log("Shop saved successfully:", result.data);
+    } catch (err) {
+      console.error("Shop save error:", err.response?.data || err.message);
+
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to save shop. Please try again.";
+
+      dispatch(setError(errorMessage));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 
   return (
     <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6] relative">
@@ -38,75 +144,161 @@ const Createeditshop = () => {
           {myShopData ? "Edit Shop" : "Add Shop"}
         </h2>
 
-        {/* Subtitle / Instruction */}
+        {/* Subtitle */}
         <p className="text-gray-600 text-center mt-2">
           {myShopData
             ? "Update your restaurant details below."
             : "Fill in your restaurant details to get started."}
         </p>
 
+        {/* Success Message */}
+        {success && (
+          <div className="flex items-center justify-center gap-2 bg-green-100 text-green-800 p-3 rounded-lg mt-4">
+            <FaCheckCircle />
+            <span>
+              Shop {myShopData ? "updated" : "created"} successfully! Redirecting...
+            </span>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-100 text-red-800 p-3 rounded-lg mt-4 text-center">
+            {error}
+          </div>
+        )}
+
         {/* Form */}
-        <form className="space-y-4 mt-6">
+        <form className="space-y-4 mt-6" onSubmit={handleSumbit}>
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Shop Name</label>
+            <label className="block text-gray-700 font-medium mb-1">
+              Shop Name
+            </label>
             <input
               type="text"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:border-red-600 border-neutral-300"
+              className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
+                formErrors.name
+                  ? "border-red-500 focus:border-red-600"
+                  : "border-neutral-300 focus:border-red-600"
+              }`}
               placeholder="Enter your shop name"
               onChange={(e) => setname(e.target.value)}
               value={name}
+              disabled={loading}
             />
+            {formErrors.name && (
+              <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
+            )}
           </div>
 
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Shop Image</label>
+            <label className="block text-gray-700 font-medium mb-1">
+              Shop Image
+            </label>
             <input
               type="file"
               accept="image/*"
               className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:border-red-600 border-neutral-300"
-              onChange={(e) => setimage(e.target.files[0])}
+              onChange={handleImage}
+              disabled={loading}
             />
+            {frontEndImage && (
+              <div className="mt-4">
+                <img
+                  src={frontEndImage}
+                  alt="Preview"
+                  className="w-full h-48 object-cover rounded-lg border"
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-700 font-medium mb-1">State</label>
+              <label className="block text-gray-700 font-medium mb-1">
+                State
+              </label>
               <input
                 type="text"
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:border-red-600 border-neutral-300"
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
+                  formErrors.state
+                    ? "border-red-500 focus:border-red-600"
+                    : "border-neutral-300 focus:border-red-600"
+                }`}
                 placeholder="State"
-                onChange={(e) => setstate(e.target.value)}
-                value={state}
+                onChange={(e) => setshopState(e.target.value)}
+                value={shopState}
+                disabled={loading}
               />
+              {formErrors.state && (
+                <p className="text-red-500 text-sm mt-1">{formErrors.state}</p>
+              )}
             </div>
             <div>
-              <label className="block text-gray-700 font-medium mb-1">City</label>
+              <label className="block text-gray-700 font-medium mb-1">
+                City
+              </label>
               <input
                 type="text"
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:border-red-600 border-neutral-300"
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
+                  formErrors.city
+                    ? "border-red-500 focus:border-red-600"
+                    : "border-neutral-300 focus:border-red-600"
+                }`}
                 placeholder="City"
                 onChange={(e) => setcity(e.target.value)}
                 value={city}
+                disabled={loading}
               />
+              {formErrors.city && (
+                <p className="text-red-500 text-sm mt-1">{formErrors.city}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Address</label>
+            <label className="block text-gray-700 font-medium mb-1">
+              Address
+            </label>
             <input
               type="text"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:border-red-600 border-neutral-300"
+              className={`w-full border rounded-lg px-3 py-2 focus:outline-none ${
+                formErrors.address
+                  ? "border-red-500 focus:border-red-600"
+                  : "border-neutral-300 focus:border-red-600"
+              }`}
               placeholder="Enter your shop address"
               onChange={(e) => setaddress(e.target.value)}
               value={address}
+              disabled={loading}
             />
+            {formErrors.address && (
+              <p className="text-red-500 text-sm mt-1">{formErrors.address}</p>
+            )}
           </div>
 
           <button
             type="submit"
-            className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-md cursor-pointer"
+            disabled={loading || success}
+            className={`w-full font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-md flex items-center justify-center gap-2 ${
+              loading || success
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-red-500 hover:bg-red-600 cursor-pointer"
+            } text-white`}
           >
-            Save
+            {loading ? (
+              <>
+                <ClipLoader size={18} color="#ffffff" />
+                <span>Saving...</span>
+              </>
+            ) : success ? (
+              <>
+                <FaCheckCircle />
+                <span>Saved!</span>
+              </>
+            ) : (
+              <span>{myShopData ? "Update Shop" : "Create Shop"}</span>
+            )}
           </button>
         </form>
       </div>

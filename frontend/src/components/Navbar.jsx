@@ -165,7 +165,9 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
         <div className="md:hidden w-[90%] mx-auto mt-2 h-[50px] bg-white border border-gray-300 rounded-xl shadow-md flex items-center px-3 gap-3 transition-all duration-300">
           <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
             <FaMapMarkerAlt className="text-red-500" size={20} />
-            <span className="truncate text-sm">{city || "Select location"}</span>
+            <span className="truncate text-sm" title={displayLocation}>
+              {displayLocation}
+            </span>
           </div>
           <div className="flex items-center flex-1 gap-2">
             <FiSearch className="text-red-500" size={20} />

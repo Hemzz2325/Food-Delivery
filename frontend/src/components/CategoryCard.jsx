@@ -1,33 +1,19 @@
-import React from "react";
-import { assets } from "../assets/assets";
-
-/**
- * CategoryCard
- * Props:
- *  - name: string
- *  - image: url string
- */
-function CategoryCard({ name, image }) {
+const CategoryCard = ({ name, image }) => {
   return (
-    <div className="group w-[130px] h-[130px] md:w-[180px] md:h-[180px] rounded-2xl border-2 border-[#ff4d2d] relative shrink-0 overflow-hidden bg-white shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer">
-      {/* Category Image */}
-      <img
-        src={image || assets.logo}
-        alt={name || "category"}
-        className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-      />
-
-      {/* Overlay Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent opacity-60 group-hover:opacity-80 transition duration-300"></div>
-
-      {/* Category Name */}
-      <div className="absolute bottom-0 left-0 w-full px-2 py-2 text-center">
-        <span className="text-sm md:text-base font-semibold text-white drop-shadow-md group-hover:text-yellow-300 transition-colors duration-300">
-          {name}
-        </span>
+    <div className="flex flex-col items-center gap-3 p-4 rounded-3xl bg-gradient-to-b from-white to-gray-50 shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 ease-out cursor-pointer w-[110px] h-[140px]">
+      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+        <img
+          src={image}
+          alt={name}
+          className="w-full h-full object-cover"
+        />
       </div>
+      <p className="text-sm font-semibold text-gray-800 text-center capitalize truncate">
+        {name}
+      </p>
+      <div className="w-8 h-1 rounded-full bg-gradient-to-r from-purple-400 via-pink-400 to-red-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     </div>
   );
-}
+};
 
 export default CategoryCard;

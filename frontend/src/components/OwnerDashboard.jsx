@@ -1,69 +1,173 @@
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Navbar from "./Navbar";
+import { FaArrowCircleLeft, FaArrowCircleRight } from "react-icons/fa";
 import { useSelector } from "react-redux";
-import { FaUtensils, FaPen } from "react-icons/fa";
-import OwnerItemcard from "./OwnerItemcard";
-import { useNavigate } from "react-router-dom";
+import FoodCard from "./FoodCard";
+import CategoryCard from "./CategoryCard";
+import useCurrentOrder from "../Hooks/useCurrentOrder.js";
+import TrackDelivery from "./TrackDelivery";
+import { categoryImages } from "../assets/assets";
 
-const OwnerDashboard = () => {
-  const { myShopData } = useSelector((state) => state.owner);
-  const navigate = useNavigate();
+const UserDashboard = () => {
+  // Fetch current order for driverId
+  useCurrentOrder();
+
+  const {
+    city: currentCity,
+    shopInMyCity: shopsInMyCity = [],
+    itemsInMyCity = [],
+    categories = [],
+    currentOrder,
+  } = useSelector((state) => state.user);
+
+  const driverId = currentOrder?.driverId; // dynamic driverId
+
+  const cateScroll = useRef(null);
+  const shopScroll = useRef(null);
+
+  const [showLeftButton, setShowLeftButton] = useState(false);
+  const [showRightButton, setShowRightButton] = useState(false);
+  const [showLeftShopButton, setShowLeftShopButton] = useState(false);
+  const [showRightShopButton, setShowRightShopButton] = useState(false);
+
+  const updateButtons = (ref, setLeft, setRight) => {
+    const el = ref.current;
+    if (!el) return;
+    setLeft(el.scrollLeft > 0);
+    setRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+
+  const scrollHandler = (ref, direction) => {
+    if (!ref.current) return;
+    ref.current.scrollBy({
+      left: direction === "left" ? -200 : 200,
+      behavior: "smooth",
+    });
+  };
+
+  useEffect(() => {
+    const c = cateScroll.current;
+    const s = shopScroll.current;
+    const onCateScroll = () =>
+      updateButtons(cateScroll, setShowLeftButton, setShowRightButton);
+    const onShopScroll = () =>
+      updateButtons(shopScroll, setShowLeftShopButton, setShowRightShopButton);
+
+    updateButtons(cateScroll, setShowLeftButton, setShowRightButton);
+    updateButtons(shopScroll, setShowLeftShopButton, setShowRightShopButton);
+
+    if (c) c.addEventListener("scroll", onCateScroll);
+    if (s) s.addEventListener("scroll", onShopScroll);
+
+    return () => {
+      if (c) c.removeEventListener("scroll", onCateScroll);
+      if (s) s.removeEventListener("scroll", onShopScroll);
+    };
+  }, [categories, shopsInMyCity]);
 
   return (
-    <div className="w-[100vw] min-h-screen pt-[80px] flex flex-col items-center bg-[#fff9f6]">
+    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6]">
       <Navbar />
 
-      {!myShopData ? (
-        <div className="flex justify-center items-center w-full px-3">
-          <div className="w-full max-w-sm bg-white shadow-md rounded-lg p-5 border border-gray-200 text-center">
-            <FaUtensils className="text-red-500 w-12 h-12 mx-auto mb-4" />
-            <h1 className="text-lg font-bold text-gray-800 mb-2">Add Your Restaurant</h1>
-            <p className="text-gray-600 text-xs mb-4">
-              Join our food delivery app and serve thousands of hungry customers every day. Grow your business with{" "}
-              <span className="text-red-500 font-semibold">Country-Kitchen</span>!
-            </p>
-            <button onClick={() => navigate("/create-edit-shop")} className="mt-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-4 rounded-md transition-colors shadow-sm text-sm">Get Started</button>
-          </div>
-        </div>
-      ) : (
-        <div className="w-full flex flex-col items-center gap-4 px-3">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mt-5 text-center">
-            <FaUtensils className="text-red-500 w-6 h-6" />
-            Welcome to {myShopData.name || "Your Restaurant"}
-          </h2>
+      {/* Categories Section */}
+      <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">
+          Inspiration for your first Order
+        </h1>
 
-          <div className="bg-white shadow-md rounded-lg overflow-hidden border border-orange-200 hover:shadow-lg transition-all duration-300 w-full max-w-md relative">
-            <div className="absolute top-3 right-3 bg-red-600 text-white p-1.5 rounded-full shadow-sm hover:bg-orange-600 transition-colors cursor-pointer" onClick={() => navigate("/create-edit-shop")}>
-              <FaPen size={14} />
-            </div>
-
-            {myShopData.image ? <img className="w-full h-32 object-cover" src={myShopData.image} alt={myShopData.name} /> : <div className="w-full h-32 flex items-center justify-center bg-gray-100 text-gray-400">No Image</div>}
-
-            <div className="p-3">
-              <h1 className="text-base font-bold text-gray-800 mb-1">{myShopData.name}</h1>
-              <p className="text-gray-500 text-sm mb-1">{myShopData.city || "City"}, {myShopData.state || "State"}</p>
-              <p className="text-gray-500 text-sm">{myShopData.address || ""}</p>
-            </div>
-          </div>
-
-          {(!myShopData.items || myShopData.items.length === 0) ? (
-            <div className="flex justify-center items-center w-full px-3">
-              <div className="w-full max-w-sm bg-white shadow-md rounded-lg p-5 border border-gray-200 text-center">
-                <FaUtensils className="text-red-500 w-12 h-12 mx-auto mb-4" />
-                <h1 className="text-lg font-bold text-gray-800 mb-2">Add Your Food Items</h1>
-                <p className="text-gray-600 text-xs mb-4">Add items <span className="text-red-500 font-semibold">Country-Kitchen</span>!</p>
-                <button onClick={() => navigate("/add-item")} className="mt-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-4 rounded-md transition-colors shadow-sm text-sm">Add Food</button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-4 w-full max-w-3xl">
-              {myShopData.items.map((item, index) => <OwnerItemcard data={item} key={item._id || index} />)}
-            </div>
+        <div className="w-full relative">
+          {showLeftButton && (
+            <button
+              onClick={() => scrollHandler(cateScroll, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleLeft />
+            </button>
           )}
+
+          <div
+            className="w-full flex overflow-x-auto gap-4 pb-2"
+            ref={cateScroll}
+          >
+            {categories.map((cate, index) => (
+              <CategoryCard
+                name={cate}
+                image={categoryImages[cate.toLowerCase()] || categoryImages["breakfast"]}
+                key={index}
+              />
+            ))}
+          </div>
+
+          {showRightButton && (
+            <button
+              onClick={() => scrollHandler(cateScroll, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleRight />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Shops Section */}
+      <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">
+          Best Shop in {currentCity || "your city"}
+        </h1>
+
+        <div className="w-full relative">
+          {showLeftShopButton && (
+            <button
+              onClick={() => scrollHandler(shopScroll, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleLeft />
+            </button>
+          )}
+
+          <div
+            className="w-full flex overflow-x-auto gap-4 pb-2"
+            ref={shopScroll}
+          >
+            {(shopsInMyCity || []).map((shop, index) => (
+              <CategoryCard
+                name={shop.name}
+                image={shop.image || "/assets/shop-default.jpg"}
+                key={shop._id || index}
+              />
+            ))}
+          </div>
+
+          {showRightShopButton && (
+            <button
+              onClick={() => scrollHandler(shopScroll, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleRight />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Food Items Section */}
+      <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">Suggested Food Items</h1>
+        <div className="w-full h-auto flex flex-wrap gap-[20px] justify-center">
+          {(itemsInMyCity || []).map((item, index) => (
+            <FoodCard key={item._id || index} data={item} />
+          ))}
+        </div>
+      </div>
+
+      {/* Track Delivery Section */}
+      {driverId && (
+        <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+          <h1 className="text-gray-800 text-2xl sm:text-3xl">Track Your Delivery</h1>
+          <TrackDelivery driverId={driverId} />
         </div>
       )}
     </div>
   );
 };
 
-export default OwnerDashboard;
+export default UserDashboard;

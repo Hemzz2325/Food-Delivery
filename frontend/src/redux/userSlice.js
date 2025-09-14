@@ -6,10 +6,26 @@ const initialState = {
   city: null,
   state: null,
   address: null,
-  shopInMyCity: null,   // shops in user’s city
-  itemsInMyCity: null,  // items in user’s city
-  currentOrder: null
-
+  shopInMyCity: null,   // shops in user's city
+  itemsInMyCity: null,  // items in user's city
+  currentOrder: null,
+  // ✅ Add only this - categories array that UserDashboard expects
+  categories: [
+    "breakfast",
+    "lunch", 
+    "dinner",
+    "snacks",
+    "drinks",
+    "south indian",
+    "north indian",
+    "punjabi",
+    "chinese",
+    "juices",
+    "desserts",
+    "sandwich",
+    "burger",
+    "pizzas"
+  ]
 };
 
 const userSlice = createSlice({
@@ -35,9 +51,8 @@ const userSlice = createSlice({
       state.itemsInMyCity = action.payload;
     },
     setCurrentOrder: (state, action) => {
-  state.currentOrder = action.payload;
-},
-
+      state.currentOrder = action.payload;
+    },
     clearUserData: (state) => {
       state.userData = null;
       state.city = null;
@@ -57,7 +72,7 @@ export const {
   setShopInMyCity,
   setItemsInMyCity,
   clearUserData,
-   setCurrentOrder,
+  setCurrentOrder,
 } = userSlice.actions;
 
 // Backward compatibility (if older code used these names)

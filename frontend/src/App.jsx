@@ -4,20 +4,22 @@ import Signin from "./pages/Signin";
 import Signup from "./pages/Signup";
 import Forgotpassword from "./pages/Forgotpassword";
 import Home from "./pages/Home";
-import useGetCurrUser from "./Hooks/useGetCurrUser";   // ✅ fixed path
+import useGetCurrUser from "./Hooks/useGetCurrUser";
 import { useSelector } from "react-redux";
-import useGetCity from "./Hooks/useGetCity";           // ✅ fixed path
-import useGetMyShop from "./Hooks/useGetMyShop";       // ✅ fixed path
+import useGetCity from "./Hooks/useGetCity";
+import useGetMyShop from "./Hooks/useGetMyShop";
+import useGetShopByCity from "./Hooks/useGetShopByCity"; // ✅ Add this import
 import Createeditshop from "./pages/Createeditshop";
 import AddItem from "./pages/AddItems";
 import EditItem from "./pages/EditItem";
-import useGetItemsInMyCity from "./Hooks/useGetItemByCity"; // ✅ fixed path
+import useGetItemsInMyCity from "./Hooks/useGetItemByCity";
 
 function App() {
   // 🔹 Run hooks on app load
   useGetCurrUser();
   useGetCity();
   useGetMyShop();
+  useGetShopByCity(); // ✅ Add this single line
   useGetItemsInMyCity();
 
   const { userData } = useSelector((state) => state.user);

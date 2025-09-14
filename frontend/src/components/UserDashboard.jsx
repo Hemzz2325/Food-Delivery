@@ -3,25 +3,32 @@ import Navbar from "./Navbar";
 import { FaArrowCircleLeft, FaArrowCircleRight } from "react-icons/fa";
 import { useSelector } from "react-redux";
 import FoodCard from "./FoodCard";
-
 import CategoryCard from "./CategoryCard";
-import useCurrentOrder from "../Hooks/useCurrentOrder.js"; // add the .js
+import useCurrentOrder from "../Hooks/useCurrentOrder.js";
 import TrackDelivery from "./TrackDelivery";
 
+import menu_1 from "../assets/menu_1.png";
+import menu_2 from "../assets/menu_2.png";
+import menu_3 from "../assets/menu_3.png";
+import menu_4 from "../assets/menu_4.png";
+import menu_5 from "../assets/menu_5.png";
+import menu_6 from "../assets/menu_6.png";
+import menu_7 from "../assets/menu_7.png";
+import menu_8 from "../assets/menu_8.png";
 
 const UserDashboard = () => {
   // Fetch current order for driverId
   useCurrentOrder();
 
   const {
-    currentCity,
-    shopsInMyCity = [],
+    city: currentCity,
+    shopInMyCity: shopsInMyCity = [],
     itemsInMyCity = [],
     categories = [],
     currentOrder,
   } = useSelector((state) => state.user);
 
-  const driverId = currentOrder?.driverId; // dynamic driverId
+  const driverId = currentOrder?.driverId;
 
   const cateScroll = useRef(null);
   const shopScroll = useRef(null);
@@ -30,6 +37,24 @@ const UserDashboard = () => {
   const [showRightButton, setShowRightButton] = useState(false);
   const [showLeftShopButton, setShowLeftShopButton] = useState(false);
   const [showRightShopButton, setShowRightShopButton] = useState(false);
+
+  // ✅ Create category images mapping using imported images
+  const categoryImages = {
+    "breakfast": menu_1,
+    "lunch": menu_6,
+    "dinner": menu_7,
+    "snacks": menu_2,
+    "drinks": menu_8,
+    "south indian": menu_6,
+    "north indian": menu_5,
+    "punjabi": menu_6,
+    "chinese": menu_8,
+    "juices": menu_3,
+    "desserts": menu_3,
+    "sandwich": menu_4,
+    "burger": menu_2,
+    "pizzas": menu_7
+  };
 
   const updateButtons = (ref, setLeft, setRight) => {
     const el = ref.current;
@@ -93,7 +118,7 @@ const UserDashboard = () => {
             {categories.map((cate, index) => (
               <CategoryCard
                 name={cate}
-                image={`/assets/categories/${cate}.jpg`}
+                image={categoryImages[cate.toLowerCase()] || menu_1}
                 key={index}
               />
             ))}
@@ -130,7 +155,7 @@ const UserDashboard = () => {
             className="w-full flex overflow-x-auto gap-4 pb-2"
             ref={shopScroll}
           >
-            {shopsInMyCity.map((shop, index) => (
+            {(shopsInMyCity || []).map((shop, index) => (
               <CategoryCard
                 name={shop.name}
                 image={shop.image || "/assets/shop-default.jpg"}
@@ -154,7 +179,7 @@ const UserDashboard = () => {
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
         <h1 className="text-gray-800 text-2xl sm:text-3xl">Suggested Food Items</h1>
         <div className="w-full h-auto flex flex-wrap gap-[20px] justify-center">
-          {itemsInMyCity?.map((item, index) => (
+          {(itemsInMyCity || []).map((item, index) => (
             <FoodCard key={item._id || index} data={item} />
           ))}
         </div>

@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config.js";
-import { setShopInMycity, clearUserData } from "../redux/userSlice.js";
+
+import { setShopInMyCity, clearUserData } from "../redux/userSlice.js";
+//           ^^^^^^^^^^^^
+//           Fixed: uppercase 'C' in "City"
 
 function useGetShopByCity() {
   const dispatch = useDispatch();
@@ -20,7 +23,7 @@ function useGetShopByCity() {
 
       try {
         const res = await axios.get(`${serverUrl}/api/shop/get-by-city/${encodeURIComponent(currentCity)}`, { withCredentials: true });
-        dispatch(setShopInMycity(res.data.shops || res.data));
+        dispatch(setShopInMyCity(res.data.shops || res.data));
       } catch (err) {
         console.warn("Fetch Shops Error:", err.response?.data || err.message);
         dispatch(clearUserData());

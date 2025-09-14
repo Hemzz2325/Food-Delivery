@@ -116,6 +116,24 @@ export const menu_list = [
         menu_image: menu_8
     }]
 
+// ✅ ADD THIS: Category images mapping for your categories
+export const categoryImages = {
+    "breakfast": menu_1,       // Using Salad image for breakfast
+    "lunch": menu_6,           // Using Pure Veg for lunch
+    "dinner": menu_7,          // Using Pasta for dinner
+    "snacks": menu_2,          // Using Rolls for snacks
+    "drinks": menu_8,          // Using Noodles for drinks (or you can use any)
+    "south indian": menu_6,    // Using Pure Veg for South Indian
+    "north indian": menu_5,    // Using Cake for North Indian
+    "punjabi": menu_6,         // Using Pure Veg for Punjabi
+    "chinese": menu_8,         // Using Noodles for Chinese
+    "juices": menu_3,          // Using Deserts for juices
+    "desserts": menu_3,        // Using Deserts for desserts
+    "sandwich": menu_4,        // Using Sandwich image
+    "burger": menu_2,          // Using Rolls for burger
+    "pizzas": menu_7           // Using Pasta for pizzas
+};
+
 export const food_list = [
     {
         _id: "1",

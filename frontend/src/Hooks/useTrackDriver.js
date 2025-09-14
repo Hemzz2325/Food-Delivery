@@ -1,8 +1,8 @@
-// frontend/src/hooks/useTrackDriver.js
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import { serverUrl } from "../config";
 
-const socket = io("http://localhost:5000"); // Backend URL
+const socket = io(serverUrl); // Changed from "http://localhost:5000"
 
 export default function useTrackDriver(driverId) {
   const [location, setLocation] = useState({ lat: null, lon: null });

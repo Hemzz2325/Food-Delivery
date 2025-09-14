@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import { io } from "socket.io-client";
+import { serverUrl } from "../config";
 
-// Connect to backend Socket.io
-const socket = io("http://localhost:5000"); // replace with your backend URL
+// Use the same server URL as backend
+const socket = io(serverUrl); // Changed from "http://localhost:5000"
 
 function useDriverLocation(driverId) {
   useEffect(() => {
     if (!navigator.geolocation) return;
 
-    // Watch driver location
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         socket.emit("driver-location", {
@@ -21,7 +21,6 @@ function useDriverLocation(driverId) {
       { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
     );
 
-    // Clean up on unmount
     return () => navigator.geolocation.clearWatch(watchId);
   }, [driverId]);
 }

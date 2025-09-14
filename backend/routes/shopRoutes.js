@@ -6,6 +6,7 @@ import upload from "../middlewares/multer.js";
 
 const shopRouter = express.Router();
 
+// All paths should be relative (no leading slash needed as they're already under /api/shop)
 shopRouter.post("/create-edit", isAuth, upload.single("image"), createAndEditShop);
 shopRouter.get("/get-myShop", isAuth, getMyShop);
 shopRouter.get("/get-by-city/:city", getShopByCity);

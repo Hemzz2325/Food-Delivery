@@ -4,6 +4,7 @@ import { googleAuth, resetPassword, sendOtp, signIn, signOut, signUp, verifyOtp 
 
 const authRouter = express.Router();
 
+// All paths should be relative (no leading slash needed as they're already under /api/auth)
 authRouter.post("/signup", signUp);
 authRouter.post("/signin", signIn);
 authRouter.post("/signout", signOut);

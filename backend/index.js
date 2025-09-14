@@ -45,21 +45,17 @@ app.use(cookieParser());
 // Debug middleware to log requests
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log('Body:', JSON.stringify(req.body, null, 2));
-  }
   next();
 });
 
-// Routes
+// Routes - IMPORTANT: All route paths must be relative strings, no URLs
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/shop", shopRouter);
 app.use("/api/item", itemRouter);
-app.use("/api/orders", orderRouter); // ✅ correct
+app.use("/api/order", orderRouter);
 
-
-// Health check
+// Health check - relative path only
 app.get("/health", (req, res) => {
   console.log("✅ Health check requested");
   res.json({ 
@@ -70,22 +66,39 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Root route
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "Country Kitchen Backend API",
+    version: "1.0.0",
+    endpoints: {
+      health: "/health",
+      auth: "/api/auth",
+      user: "/api/user", 
+      shop: "/api/shop",
+      item: "/api/item",
+      order: "/api/order"
+    }
+  });
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error("❌ Server Error:", error);
   res.status(500).json({ 
     message: "Internal server error", 
-    error: error.message 
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
 
-// 404 handler
+// 404 handler - must be last
 app.use('*', (req, res) => {
   console.warn("❌ 404 - Route not found:", req.method, req.originalUrl);
   res.status(404).json({ 
     message: "Route not found",
     method: req.method,
-    url: req.originalUrl
+    url: req.originalUrl,
+    availableEndpoints: ["/health", "/api/auth", "/api/user", "/api/shop", "/api/item", "/api/order"]
   });
 });
 
@@ -118,17 +131,30 @@ io.on("connection", (socket) => {
 });
 
 // Connect DB and start server
-server.listen(port, async () => {
-  console.log(`🚀 Server starting on port ${port}...`);
+const startServer = async () => {
   try {
+    console.log(`🚀 Server starting on port ${port}...`);
     await connectDb();
-    console.log(`✅ Server successfully started at http://localhost:${port}`);
-    console.log(`📋 Health check: http://localhost:${port}/health`);
-    console.log(`🔐 Auth endpoint: http://localhost:${port}/api/auth/signin`);
+    
+    server.listen(port, () => {
+      console.log(`✅ Server successfully started at http://localhost:${port}`);
+      console.log(`📋 Health check: http://localhost:${port}/health`);
+      console.log(`🔐 Auth endpoint: http://localhost:${port}/api/auth/signin`);
+      console.log(`📊 Available routes:`);
+      console.log(`   GET  /health`);
+      console.log(`   POST /api/auth/signin`);
+      console.log(`   POST /api/auth/signup`);
+      console.log(`   GET  /api/user/current`);
+      console.log(`   GET  /api/shop/get-myShop`);
+      console.log(`   GET  /api/item/get-by-city/:city`);
+      console.log(`   POST /api/order/create`);
+    });
   } catch (error) {
     console.error("❌ Server startup failed:", error);
     process.exit(1);
   }
-});
+};
+
+startServer();
 
 export { io };

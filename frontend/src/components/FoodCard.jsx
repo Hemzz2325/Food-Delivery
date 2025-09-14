@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// src/components/FoodCard.jsx
+import React from "react";
 import { FaLeaf, FaDrumstickBite, FaStar, FaRegStar, FaPlus, FaShoppingCart, FaMinus } from "react-icons/fa";
 
 /**
@@ -18,11 +19,25 @@ const renderStars = (rating = 0) => {
   return stars;
 };
 
-const FoodCard = ({ data }) => {
-  const [quantity, setQuantity] = useState(0);
+const FoodCard = ({ data, onAddToCart, cartItem }) => {
+  const handleAddToCart = () => {
+    onAddToCart({ ...data, quantity: 1 });
+  };
 
-  const handleIncrease = () => setQuantity((q) => q + 1);
-  const handleDecrease = () => setQuantity((q) => Math.max(0, q - 1));
+  const handleIncreaseQuantity = () => {
+    onAddToCart({ ...data, quantity: (cartItem?.quantity || 0) + 1 });
+  };
+
+  const handleDecreaseQuantity = () => {
+    if (cartItem && cartItem.quantity > 1) {
+      onAddToCart({ ...data, quantity: cartItem.quantity - 1 });
+    } else {
+      // Remove from cart logic would be handled by parent
+      onAddToCart({ ...data, quantity: 0 });
+    }
+  };
+
+  const currentQuantity = cartItem?.quantity || 0;
 
   return (
     <div className="w-[250px] bg-white rounded-3xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105 transition-all duration-300 flex flex-col overflow-hidden">
@@ -50,33 +65,44 @@ const FoodCard = ({ data }) => {
           {renderStars(Math.round(data.rating?.average || 0))}
           <span className="text-gray-500 text-xs">({data.rating?.count || 0})</span>
         </div>
+        <p className="text-sm text-gray-600 capitalize">{data.category}</p>
       </div>
 
       {/* Price & Counter */}
       <div className="flex items-center justify-between px-4 pb-4">
         <span className="font-bold text-gray-700 text-lg">₹{data.price}</span>
 
-        {/* Counter */}
-        <div className="flex items-center border rounded-full overflow-hidden shadow-sm">
-          <button
-            onClick={handleDecrease}
-            className="px-3 py-1 hover:bg-gray-100 transition-colors"
-          >
-            <FaMinus size={12} />
-          </button>
-          <span className="px-4 font-medium text-gray-800">{quantity}</span>
-          <button
-            onClick={handleIncrease}
-            className="px-3 py-1 hover:bg-gray-100 transition-colors"
-          >
-            <FaPlus size={12} />
-          </button>
+        <div className="flex items-center gap-2">
+          {currentQuantity === 0 ? (
+            // Add to Cart Button
+            <button
+              onClick={handleAddToCart}
+              className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+            >
+              <FaShoppingCart size={14} />
+              <span className="text-sm font-semibold">Add</span>
+            </button>
+          ) : (
+            // Quantity Counter
+            <div className="flex items-center border rounded-full overflow-hidden shadow-sm bg-white">
+              <button
+                onClick={handleDecreaseQuantity}
+                className="px-3 py-2 hover:bg-gray-100 transition-colors text-red-500"
+              >
+                <FaMinus size={12} />
+              </button>
+              <span className="px-4 py-2 font-medium text-gray-800 bg-gray-50">
+                {currentQuantity}
+              </span>
+              <button
+                onClick={handleIncreaseQuantity}
+                className="px-3 py-2 hover:bg-gray-100 transition-colors text-red-500"
+              >
+                <FaPlus size={12} />
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Add to cart */}
-        <button className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-2 rounded-lg shadow-md hover:shadow-xl transition-all duration-300">
-          <FaShoppingCart />
-        </button>
       </div>
     </div>
   );

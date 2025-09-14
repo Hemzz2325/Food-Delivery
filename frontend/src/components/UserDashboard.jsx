@@ -1,12 +1,17 @@
+// src/components/UserDashboard.jsx
 import React, { useRef, useEffect, useState } from "react";
 import Navbar from "./Navbar";
-import { FaArrowCircleLeft, FaArrowCircleRight } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { FaArrowCircleLeft, FaArrowCircleRight, FaShoppingCart, FaTimes, FaPlus, FaMinus } from "react-icons/fa";
+import { useSelector, useDispatch } from "react-redux";
 import FoodCard from "./FoodCard";
 import CategoryCard from "./CategoryCard";
 import useCurrentOrder from "../Hooks/useCurrentOrder.js";
 import TrackDelivery from "./TrackDelivery";
+import { addToCart, removeFromCart, updateCartQuantity, clearCart } from "../redux/userSlice";
+import axios from "axios";
+import { serverUrl } from "../config";
 
+// Import menu images
 import menu_1 from "../assets/menu_1.png";
 import menu_2 from "../assets/menu_2.png";
 import menu_3 from "../assets/menu_3.png";
@@ -17,16 +22,27 @@ import menu_7 from "../assets/menu_7.png";
 import menu_8 from "../assets/menu_8.png";
 
 const UserDashboard = () => {
-  // Fetch current order for driverId
-  useCurrentOrder();
+  // Try to fetch current order, but don't break if it fails
+  try {
+    useCurrentOrder();
+  } catch (error) {
+    console.warn("Current order hook failed:", error);
+  }
 
+  const dispatch = useDispatch();
   const {
     city: currentCity,
     shopInMyCity: shopsInMyCity = [],
     itemsInMyCity = [],
     categories = [],
     currentOrder,
+    cart = [],
   } = useSelector((state) => state.user);
+
+  const [showCart, setShowCart] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [filteredItems, setFilteredItems] = useState(itemsInMyCity);
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const driverId = currentOrder?.driverId;
 
@@ -38,7 +54,7 @@ const UserDashboard = () => {
   const [showLeftShopButton, setShowLeftShopButton] = useState(false);
   const [showRightShopButton, setShowRightShopButton] = useState(false);
 
-  // ✅ Create category images mapping using imported images
+  // Category images mapping
   const categoryImages = {
     "breakfast": menu_1,
     "lunch": menu_6,
@@ -56,6 +72,40 @@ const UserDashboard = () => {
     "pizzas": menu_7
   };
 
+  // Filter items by category
+  useEffect(() => {
+    if (selectedCategory) {
+      const filtered = itemsInMyCity.filter(item => 
+        item.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+      setFilteredItems(filtered);
+    } else {
+      setFilteredItems(itemsInMyCity);
+    }
+  }, [selectedCategory, itemsInMyCity]);
+
+  // Cart functions
+  const handleAddToCart = (item) => {
+    dispatch(addToCart(item));
+  };
+
+  const handleRemoveFromCart = (itemId) => {
+    dispatch(removeFromCart(itemId));
+  };
+
+  const handleUpdateQuantity = (itemId, quantity) => {
+    if (quantity <= 0) {
+      dispatch(removeFromCart(itemId));
+    } else {
+      dispatch(updateCartQuantity({ itemId, quantity }));
+    }
+  };
+
+  // Calculate cart totals
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartItemsCount = cart.reduce((count, item) => count + item.quantity, 0);
+
+  // Scroll button logic
   const updateButtons = (ref, setLeft, setRight) => {
     const el = ref.current;
     if (!el) return;
@@ -91,9 +141,105 @@ const UserDashboard = () => {
     };
   }, [categories, shopsInMyCity]);
 
+  // Razorpay Integration
+  const initializeRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+
+    setIsProcessingPayment(true);
+
+    try {
+      // Initialize Razorpay
+      const razorpayLoaded = await initializeRazorpay();
+      if (!razorpayLoaded) {
+        alert("Razorpay SDK failed to load. Check your connection.");
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      // Create order on backend
+      const orderData = {
+        items: cart.map(item => ({
+          itemId: item._id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        totalAmount: cartTotal,
+        currency: "INR"
+      };
+
+      const { data } = await axios.post(`${serverUrl}/api/order/create`, orderData, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+      });
+
+      // Razorpay options
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Fixed: using import.meta.env instead of process.env
+        amount: data.amount,
+        currency: data.currency,
+        name: "Country Kitchen",
+        description: "Food Order Payment",
+        order_id: data.id,
+        handler: async (response) => {
+          try {
+            // Verify payment on backend
+            const verifyData = {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+
+            await axios.post(`${serverUrl}/api/order/verify-payment`, verifyData, {
+              withCredentials: true,
+              headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+            });
+
+            // Clear cart and show success
+            dispatch(clearCart());
+            setShowCart(false);
+            alert("Payment successful! Your order has been placed.");
+          } catch (error) {
+            console.error("Payment verification failed:", error);
+            alert("Payment verification failed. Please contact support.");
+          }
+        },
+        prefill: {
+          name: "",
+          email: "",
+          contact: ""
+        },
+        theme: {
+          color: "#ff4d2d"
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert("Failed to initiate payment. Please try again.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(selectedCategory === category ? "" : category);
+  };
+
   return (
     <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6]">
-      <Navbar />
+      <Navbar cartItemsCount={cartItemsCount} onCartClick={() => setShowCart(true)} />
 
       {/* Categories Section */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
@@ -116,11 +262,16 @@ const UserDashboard = () => {
             ref={cateScroll}
           >
             {categories.map((cate, index) => (
-              <CategoryCard
-                name={cate}
-                image={categoryImages[cate.toLowerCase()] || menu_1}
+              <div 
                 key={index}
-              />
+                onClick={() => handleCategoryClick(cate)}
+                className={`cursor-pointer ${selectedCategory === cate ? 'ring-2 ring-red-500' : ''}`}
+              >
+                <CategoryCard
+                  name={cate}
+                  image={categoryImages[cate.toLowerCase()] || menu_1}
+                />
+              </div>
             ))}
           </div>
 
@@ -177,11 +328,34 @@ const UserDashboard = () => {
 
       {/* Food Items Section */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
-        <h1 className="text-gray-800 text-2xl sm:text-3xl">Suggested Food Items</h1>
+        <div className="flex justify-between items-center w-full">
+          <h1 className="text-gray-800 text-2xl sm:text-3xl">
+            {selectedCategory ? `${selectedCategory} Items` : "Suggested Food Items"}
+          </h1>
+          {selectedCategory && (
+            <button
+              onClick={() => setSelectedCategory("")}
+              className="text-red-500 hover:text-red-700 font-medium"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
         <div className="w-full h-auto flex flex-wrap gap-[20px] justify-center">
-          {(itemsInMyCity || []).map((item, index) => (
-            <FoodCard key={item._id || index} data={item} />
-          ))}
+          {filteredItems.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              {selectedCategory ? `No ${selectedCategory} items found` : "No items available"}
+            </div>
+          ) : (
+            filteredItems.map((item, index) => (
+              <FoodCard 
+                key={item._id || index} 
+                data={item} 
+                onAddToCart={handleAddToCart}
+                cartItem={cart.find(cartItem => cartItem._id === item._id)}
+              />
+            ))
+          )}
         </div>
       </div>
 
@@ -190,6 +364,90 @@ const UserDashboard = () => {
         <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
           <h1 className="text-gray-800 text-2xl sm:text-3xl">Track Your Delivery</h1>
           <TrackDelivery driverId={driverId} />
+        </div>
+      )}
+
+      {/* Cart Sidebar */}
+      {showCart && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
+          <div className="bg-white w-full max-w-md h-full overflow-y-auto">
+            <div className="p-4 border-b">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold">Your Cart ({cartItemsCount})</h2>
+                <button
+                  onClick={() => setShowCart(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FaTimes size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {cart.length === 0 ? (
+                <div className="text-center py-8">
+                  <FaShoppingCart className="mx-auto text-gray-400 text-4xl mb-4" />
+                  <p className="text-gray-500">Your cart is empty</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {cart.map((item) => (
+                      <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-16 h-16 object-cover rounded-lg"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{item.name}</h3>
+                          <p className="text-red-500 font-bold">₹{item.price}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
+                            className="bg-gray-200 p-1 rounded"
+                          >
+                            <FaMinus size={12} />
+                          </button>
+                          <span className="px-2">{item.quantity}</span>
+                          <button
+                            onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                            className="bg-gray-200 p-1 rounded"
+                          >
+                            <FaPlus size={12} />
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveFromCart(item._id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between text-xl font-bold">
+                      <span>Total: ₹{cartTotal}</span>
+                    </div>
+                    <button
+                      onClick={handleCheckout}
+                      disabled={isProcessingPayment}
+                      className={`w-full mt-4 py-3 rounded-lg font-semibold ${
+                        isProcessingPayment
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-red-500 hover:bg-red-600"
+                      } text-white`}
+                    >
+                      {isProcessingPayment ? "Processing..." : "Proceed to Payment"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

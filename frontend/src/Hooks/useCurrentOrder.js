@@ -1,3 +1,4 @@
+// src/Hooks/useCurrentOrder.js
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
@@ -18,9 +19,14 @@ function useCurrentOrder() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        dispatch(setCurrentOrder(res.data.order));
+        if (res.data && res.data.order) {
+          dispatch(setCurrentOrder(res.data.order));
+        }
       } catch (err) {
-        console.warn("Fetch current order failed:", err.response?.data || err.message);
+        // Only log actual errors, not 404s (no current order)
+        if (err.response?.status !== 404) {
+          console.warn("Fetch current order failed:", err.response?.data || err.message);
+        }
       }
     };
 

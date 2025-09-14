@@ -9,7 +9,8 @@ const initialState = {
   shopInMyCity: null,   // shops in user's city
   itemsInMyCity: null,  // items in user's city
   currentOrder: null,
-  // ✅ Add only this - categories array that UserDashboard expects
+  cart: [],             // cart items
+  // Categories array that UserDashboard expects
   categories: [
     "breakfast",
     "lunch", 
@@ -53,6 +54,39 @@ const userSlice = createSlice({
     setCurrentOrder: (state, action) => {
       state.currentOrder = action.payload;
     },
+    // Cart functionality
+    addToCart: (state, action) => {
+      const item = action.payload;
+      const existingItem = state.cart.find(cartItem => cartItem._id === item._id);
+      
+      if (existingItem) {
+        existingItem.quantity = item.quantity || existingItem.quantity + 1;
+      } else {
+        state.cart.push({
+          ...item,
+          quantity: item.quantity || 1
+        });
+      }
+    },
+    removeFromCart: (state, action) => {
+      const itemId = action.payload;
+      state.cart = state.cart.filter(item => item._id !== itemId);
+    },
+    updateCartQuantity: (state, action) => {
+      const { itemId, quantity } = action.payload;
+      const item = state.cart.find(cartItem => cartItem._id === itemId);
+      
+      if (item) {
+        if (quantity <= 0) {
+          state.cart = state.cart.filter(cartItem => cartItem._id !== itemId);
+        } else {
+          item.quantity = quantity;
+        }
+      }
+    },
+    clearCart: (state) => {
+      state.cart = [];
+    },
     clearUserData: (state) => {
       state.userData = null;
       state.city = null;
@@ -60,6 +94,8 @@ const userSlice = createSlice({
       state.address = null;
       state.shopInMyCity = null;
       state.itemsInMyCity = null;
+      state.cart = [];
+      state.currentOrder = null;
     },
   },
 });
@@ -71,8 +107,12 @@ export const {
   setAddress,
   setShopInMyCity,
   setItemsInMyCity,
-  clearUserData,
   setCurrentOrder,
+  addToCart,
+  removeFromCart,
+  updateCartQuantity,
+  clearCart,
+  clearUserData,
 } = userSlice.actions;
 
 // Backward compatibility (if older code used these names)

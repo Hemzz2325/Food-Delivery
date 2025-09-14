@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx
 import React, { useState } from "react";
 import { FaMapMarkerAlt, FaPlus, FaReceipt, FaShoppingCart } from "react-icons/fa";
 import { FiSearch } from "react-icons/fi";
@@ -8,7 +9,7 @@ import { serverUrl } from "../config";
 import { setUserData, clearUserData } from "../redux/userSlice";
 import { useNavigate } from "react-router-dom";
 
-const Navbar = () => {
+const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
   const { userData, city } = useSelector((state) => state.user);
   const { myShopData } = useSelector((state) => state.owner);
   const navigate = useNavigate();
@@ -106,14 +107,19 @@ const Navbar = () => {
           {/* User Actions */}
           {userData?.role === "user" && (
             <>
-              <div className="relative cursor-pointer group">
+              <div 
+                className="relative cursor-pointer group"
+                onClick={onCartClick}
+              >
                 <FaShoppingCart
                   size={22}
                   className="text-red-500 hover:scale-110 transition-transform duration-300"
                 />
-                <span className="absolute -right-2 -top-2 text-xs font-semibold text-red-600 group-hover:scale-110 transition-transform duration-300">
-                  0
-                </span>
+                {cartItemsCount > 0 && (
+                  <span className="absolute -right-2 -top-2 text-xs font-semibold text-white bg-red-600 rounded-full px-[6px] py-[1px] group-hover:scale-110 transition-transform duration-300">
+                    {cartItemsCount}
+                  </span>
+                )}
               </div>
               <button className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
                 My Orders

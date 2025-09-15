@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { io } from "socket.io-client";
 import { serverUrl } from "../config";
 
-// Use the same server URL as backend
-const socket = io(serverUrl); // Changed from "http://localhost:5000"
+// ✅ CORRECT - Use serverUrl instead of hardcoded port
+const socket = io(serverUrl);
 
 function useDriverLocation(driverId) {
   useEffect(() => {

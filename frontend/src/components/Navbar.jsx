@@ -40,7 +40,9 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
         <div className="hidden md:flex items-center w-[300px] md:w-[400px] lg:w-[500px] h-[50px] bg-white border border-gray-300 rounded-xl shadow-md hover:shadow-xl px-3 gap-3 transition-all duration-300">
           <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
             <FaMapMarkerAlt className="text-red-500" size={20} />
-            <span className="truncate text-sm">{city || "Select location"}</span>
+            <span className="truncate text-sm" title={city || "Select location"}>
+              {city || "Select location"}
+            </span>
           </div>
 
           {userData?.role === "user" && (
@@ -107,7 +109,7 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
           {/* User Actions */}
           {userData?.role === "user" && (
             <>
-              <div 
+              <div
                 className="relative cursor-pointer group"
                 onClick={onCartClick}
               >

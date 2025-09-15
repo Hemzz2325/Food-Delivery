@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { serverUrl } from "../config";
 
-const socket = io(serverUrl); // Changed from "http://localhost:5000"
+// ✅ CORRECT - Use serverUrl instead of hardcoded port
+const socket = io(serverUrl);
 
 export default function useTrackDriver(driverId) {
   const [location, setLocation] = useState({ lat: null, lon: null });

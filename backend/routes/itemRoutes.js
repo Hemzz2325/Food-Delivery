@@ -6,22 +6,11 @@ import upload from "../middlewares/multer.js";
 
 const itemRouter = express.Router();
 
-// Add item
+// ✅ CORRECT - Proper parameter names
 itemRouter.post("/add-item", isAuth, upload.single("image"), addItem);
-
-// Edit item
 itemRouter.put("/edit-item/:itemId", isAuth, upload.single("image"), editItem);
-
-// Get by id
 itemRouter.get("/get-by-id/:itemId", isAuth, getItemById);
-
-// Delete
 itemRouter.delete("/delete/:itemId", isAuth, deleteItem);
-
-// Get by city
-itemRouter.get("/get-by-city/:city", getItemByCity);
+itemRouter.get("/get-by-city/:city", getItemByCity); // ✅ Proper parameter name
 
 export default itemRouter;
-
-
-

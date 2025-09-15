@@ -1,7 +1,4 @@
-
-
-
-
+// routes/orderRoutes.js
 import express from "express";
 import isAuth from "../middlewares/isAuth.js";
 import {
@@ -13,6 +10,7 @@ import {
 
 const orderRouter = express.Router();
 
+// ✅ CORRECT - Simple relative paths
 orderRouter.post("/create", isAuth, createOrder);
 orderRouter.post("/verify-payment", isAuth, verifyPayment);
 orderRouter.get("/current", isAuth, getCurrentOrder);

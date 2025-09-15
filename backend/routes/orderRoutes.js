@@ -10,7 +10,7 @@ import {
 
 const orderRouter = express.Router();
 
-// ✅ CORRECT - Simple relative paths
+// ✅ FIXED - All routes use simple relative paths
 orderRouter.post("/create", isAuth, createOrder);
 orderRouter.post("/verify-payment", isAuth, verifyPayment);
 orderRouter.get("/current", isAuth, getCurrentOrder);

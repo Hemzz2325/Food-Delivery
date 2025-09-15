@@ -4,7 +4,7 @@ import { googleAuth, resetPassword, sendOtp, signIn, signOut, signUp, verifyOtp 
 
 const authRouter = express.Router();
 
-// ✅ CORRECT - Simple relative paths (no leading slash needed)
+// ✅ FIXED - All routes use simple relative paths without leading slash
 authRouter.post("/signup", signUp);
 authRouter.post("/signin", signIn);
 authRouter.post("/signout", signOut);

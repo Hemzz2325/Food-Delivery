@@ -6,9 +6,9 @@ import upload from "../middlewares/multer.js";
 
 const shopRouter = express.Router();
 
-// ✅ CORRECT - Simple relative paths with proper parameters
+// ✅ FIXED - All routes use simple relative paths with proper parameter syntax
 shopRouter.post("/create-edit", isAuth, upload.single("image"), createAndEditShop);
 shopRouter.get("/get-myShop", isAuth, getMyShop);
-shopRouter.get("/get-by-city/:city", getShopByCity); // ✅ Proper parameter name
+shopRouter.get("/get-by-city/:city", getShopByCity);
 
 export default shopRouter;

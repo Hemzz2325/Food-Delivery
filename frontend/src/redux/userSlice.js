@@ -6,7 +6,7 @@ const initialState = {
   city: null,
   state: null,
   address: null,
-  shopInMyCity: null,   // shops in user's city
+  shopsInMyCity: null,   // shops in user's city
   itemsInMyCity: null,  // items in user's city
   currentOrder: null,
   cart: [],             // cart items
@@ -45,9 +45,14 @@ const userSlice = createSlice({
     setAddress: (state, action) => {
       state.address = action.payload;
     },
-    setShopInMyCity: (state, action) => {
-      state.shopInMyCity = action.payload;
-    },
+  // src/redux/userSlice.js
+setShopsInMyCity: (state, action) => {
+  state.shopsInMyCity = action.payload;
+},
+
+
+
+
     setItemsInMyCity: (state, action) => {
       state.itemsInMyCity = action.payload;
     },
@@ -92,7 +97,7 @@ const userSlice = createSlice({
       state.city = null;
       state.state = null;
       state.address = null;
-      state.shopInMyCity = null;
+      state.shopsInMyCity = null;
       state.itemsInMyCity = null;
       state.cart = [];
       state.currentOrder = null;
@@ -105,7 +110,7 @@ export const {
   setCity,
   setState,
   setAddress,
-  setShopInMyCity,
+  setShopsInMyCity,
   setItemsInMyCity,
   setCurrentOrder,
   addToCart,

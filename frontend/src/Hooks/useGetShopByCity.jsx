@@ -1,37 +1,31 @@
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { serverUrl } from "../config.js";
 
-import { setShopInMyCity, clearUserData } from "../redux/userSlice.js";
-//           ^^^^^^^^^^^^
-//           Fixed: uppercase 'C' in "City"
-
 function useGetShopByCity() {
-  const dispatch = useDispatch();
-  const { city: currentCity } = useSelector((state) => state.user);
+  const [shops, setShops] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const city = useSelector(state => state.user.city); // get city from Redux
 
   useEffect(() => {
-    if (!currentCity) return;
+    if (!city || city === "Detecting...") return; // don't fetch until city is ready
 
     const fetchShops = async () => {
-      const token = localStorage.getItem("authToken");
-      if (!token) {
-        dispatch(clearUserData());
-        return;
-      }
-
       try {
-        const res = await axios.get(`${serverUrl}/api/shop/city/${city}`, { withCredentials: true });
-        dispatch(setShopInMyCity(res.data.shops || res.data));
+        const { data } = await axios.get(`${serverUrl}/api/shop/city/${city}`);
+        setShops(data.shops || []);
+        setLoading(false);
       } catch (err) {
-        console.warn("Fetch Shops Error:", err.response?.data || err.message);
-        dispatch(clearUserData());
+        console.error("Fetch Shops Error:", err.message);
+        setLoading(false);
       }
     };
 
     fetchShops();
-  }, [dispatch, currentCity]);
+  }, [city]);
+
+  return { shops, loading };
 }
 
 export default useGetShopByCity;

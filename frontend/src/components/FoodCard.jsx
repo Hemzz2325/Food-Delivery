@@ -32,7 +32,6 @@ const FoodCard = ({ data, onAddToCart, cartItem }) => {
     if (cartItem && cartItem.quantity > 1) {
       onAddToCart({ ...data, quantity: cartItem.quantity - 1 });
     } else {
-      // Remove from cart logic would be handled by parent
       onAddToCart({ ...data, quantity: 0 });
     }
   };
@@ -59,13 +58,23 @@ const FoodCard = ({ data, onAddToCart, cartItem }) => {
       </div>
 
       {/* Food Details */}
-      <div className="flex-1 flex flex-col p-4 gap-2">
+      <div className="flex-1 flex flex-col p-4 gap-1">
         <h1 className="font-semibold text-gray-900 text-base truncate">{data.name}</h1>
         <div className="flex items-center gap-1">
           {renderStars(Math.round(data.rating?.average || 0))}
           <span className="text-gray-500 text-xs">({data.rating?.count || 0})</span>
         </div>
         <p className="text-sm text-gray-600 capitalize">{data.category}</p>
+
+        {/* Shop Name & Location */}
+        {data.shop && (
+          <div className="mt-2 text-gray-700 text-xs">
+            <p className="font-semibold text-gray-800 truncate">{data.shop.name}</p>
+            <p className="truncate">
+              {data.shop.address || `${data.shop.city || ""}, ${data.shop.state || ""}`}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Price & Counter */}
@@ -74,7 +83,6 @@ const FoodCard = ({ data, onAddToCart, cartItem }) => {
 
         <div className="flex items-center gap-2">
           {currentQuantity === 0 ? (
-            // Add to Cart Button
             <button
               onClick={handleAddToCart}
               className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-2"
@@ -83,7 +91,6 @@ const FoodCard = ({ data, onAddToCart, cartItem }) => {
               <span className="text-sm font-semibold">Add</span>
             </button>
           ) : (
-            // Quantity Counter
             <div className="flex items-center border rounded-full overflow-hidden shadow-sm bg-white">
               <button
                 onClick={handleDecreaseQuantity}

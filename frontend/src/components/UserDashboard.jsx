@@ -5,8 +5,11 @@ import { FaArrowCircleLeft, FaArrowCircleRight, FaShoppingCart, FaTimes, FaPlus,
 import { useSelector, useDispatch } from "react-redux";
 import FoodCard from "./FoodCard";
 import CategoryCard from "./CategoryCard";
-import useCurrentOrder from "../Hooks/useCurrentOrder.js";
 import TrackDelivery from "./TrackDelivery";
+import useCurrentOrder from "../Hooks/useCurrentOrder.js";
+import useGetCity from "../Hooks/useGetCity.jsx";
+import { setShopsInMyCity } from "../redux/userSlice";
+import ShopCard from "./ShopCard"; // import new ShopCard
 import { addToCart, removeFromCart, updateCartQuantity, clearCart } from "../redux/userSlice";
 import axios from "axios";
 import { serverUrl } from "../config";
@@ -22,16 +25,13 @@ import menu_7 from "../assets/menu_7.png";
 import menu_8 from "../assets/menu_8.png";
 
 const UserDashboard = () => {
-  try {
-    useCurrentOrder();
-  } catch (error) {
-    console.warn("Current order hook failed:", error);
-  }
+  useCurrentOrder(); // Hook safely used at top-level
+  useGetCity();      // Detects user location
 
   const dispatch = useDispatch();
   const {
     city: currentCity,
-    shopInMyCity: shopsInMyCity = [],
+    shopsInMyCity = [],
     itemsInMyCity = [],
     categories = [],
     currentOrder,
@@ -70,6 +70,7 @@ const UserDashboard = () => {
     "pizzas": menu_7
   };
 
+  // Filter items by selected category
   useEffect(() => {
     if (selectedCategory) {
       const filtered = (itemsInMyCity || []).filter(
@@ -81,6 +82,24 @@ const UserDashboard = () => {
     }
   }, [selectedCategory, itemsInMyCity]);
 
+  // Fetch shops in user city
+  useEffect(() => {
+    const fetchShops = async () => {
+      if (!currentCity || currentCity === "Detecting..." || currentCity === "Location unavailable") return;
+      try {
+        const { data } = await axios.get(`${serverUrl}/api/shop/city/${currentCity}`);
+        dispatch(setShopsInMyCity(data.shops || []));
+        console.log("✅ Shops fetched:", data.shops);
+      } catch (err) {
+        console.error("❌ Failed to fetch shops:", err.message);
+        dispatch(setShopsInMyCity([])); // clear shops on error
+      }
+    };
+
+    fetchShops();
+  }, [currentCity, dispatch]);
+
+  // Cart handlers
   const handleAddToCart = (item) => dispatch(addToCart(item));
   const handleRemoveFromCart = (itemId) => dispatch(removeFromCart(itemId));
   const handleUpdateQuantity = (itemId, quantity) => {
@@ -88,9 +107,10 @@ const UserDashboard = () => {
     else dispatch(updateCartQuantity({ itemId, quantity }));
   };
 
-  const cartTotal = (cart || []).reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartTotal = (cart || []).reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2);
   const cartItemsCount = (cart || []).reduce((count, item) => count + item.quantity, 0);
 
+  // Scroll button logic
   const updateButtons = (ref, setLeft, setRight) => {
     const el = ref.current;
     if (!el) return;
@@ -122,7 +142,7 @@ const UserDashboard = () => {
     };
   }, [categories, shopsInMyCity]);
 
-  // Razorpay checkout (unchanged)
+  // Razorpay integration
   const initializeRazorpay = () => new Promise(resolve => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -180,7 +200,11 @@ const UserDashboard = () => {
             alert("Payment verification failed.");
           }
         },
-        prefill: { name: "", email: "", contact: "" },
+        prefill: {
+          name: currentOrder?.userName || "",
+          email: currentOrder?.userEmail || "",
+          contact: currentOrder?.userPhone || ""
+        },
         theme: { color: "#ff4d2d" }
       };
 
@@ -194,15 +218,13 @@ const UserDashboard = () => {
     }
   };
 
-  const handleCategoryClick = (category) => {
-    setSelectedCategory(selectedCategory === category ? "" : category);
-  };
+  const handleCategoryClick = (category) => setSelectedCategory(selectedCategory === category ? "" : category);
 
   return (
     <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6]">
       <Navbar cartItemsCount={cartItemsCount} onCartClick={() => setShowCart(true)} />
 
-      {/* Categories Section */}
+      {/* Categories */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
         <h1 className="text-gray-800 text-2xl sm:text-3xl">Inspiration for your first Order</h1>
         <div className="w-full relative">
@@ -218,21 +240,46 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      {/* Shops Section */}
-      <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
-        <h1 className="text-gray-800 text-2xl sm:text-3xl">Best Shop in {currentCity || "your city"}</h1>
-        <div className="w-full relative">
-          {showLeftShopButton && <button onClick={() => scrollHandler(shopScroll, "left")} className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleLeft /></button>}
-          <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={shopScroll}>
-            {(shopsInMyCity || []).map((shop, index) => (
-              <CategoryCard key={shop._id || index} name={shop.name} image={shop.image || "/assets/shop-default.jpg"} />
-            ))}
-          </div>
-          {showRightShopButton && <button onClick={() => scrollHandler(shopScroll, "right")} className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleRight /></button>}
-        </div>
-      </div>
+      {/* Shops */}
+    <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+  <h1 className="text-gray-800 text-2xl sm:text-3xl">
+    Best Shops in {currentCity || "your city"}
+  </h1>
 
-      {/* Food Items Section */}
+  <div className="w-full relative">
+    {/* Left Scroll Button */}
+    {showLeftShopButton && (
+      <button
+        onClick={() => scrollHandler(shopScroll, "left")}
+        className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+      >
+        <FaArrowCircleLeft />
+      </button>
+    )}
+
+    {/* Shops Scrollable */}
+    <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={shopScroll}>
+      {(shopsInMyCity || []).map((shop, index) => (
+        <ShopCard key={shop._id || index} shop={shop} />
+      ))}
+    </div>
+
+    {/* Right Scroll Button */}
+    {showRightShopButton && (
+      <button
+        onClick={() => scrollHandler(shopScroll, "right")}
+        className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+      >
+        <FaArrowCircleRight />
+      </button>
+    )}
+  </div>
+
+  {console.log("🛍️ Shops in my city:", shopsInMyCity)}
+</div>
+
+
+      {/* Food Items */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
         <div className="flex justify-between items-center w-full">
           <h1 className="text-gray-800 text-2xl sm:text-3xl">{selectedCategory ? `${selectedCategory} Items` : "Suggested Food Items"}</h1>
@@ -251,52 +298,59 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      {/* Track Delivery Section */}
-      {driverId && <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]"><h1 className="text-gray-800 text-2xl sm:text-3xl">Track Your Delivery</h1><TrackDelivery driverId={driverId} /></div>}
+      {/* Track Delivery */}
+      {driverId && (
+        <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+          <h1 className="text-gray-800 text-2xl sm:text-3xl">Track Your Delivery</h1>
+          <TrackDelivery driverId={driverId} />
+        </div>
+      )}
 
       {/* Cart Sidebar */}
-      {showCart && <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
-        <div className="bg-white w-full max-w-md h-full overflow-y-auto">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Your Cart ({cartItemsCount})</h2>
-            <button onClick={() => setShowCart(false)} className="text-gray-500 hover:text-gray-700"><FaTimes size={20} /></button>
-          </div>
-          <div className="p-4">
-            {(cart || []).length === 0 ? (
-              <div className="text-center py-8">
-                <FaShoppingCart className="mx-auto text-gray-400 text-4xl mb-4" />
-                <p className="text-gray-500">Your cart is empty</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-4">
-                  {(cart || []).map(item => (
-                    <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{item.name}</h3>
-                        <p className="text-red-500 font-bold">₹{item.price}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} className="bg-gray-200 p-1 rounded"><FaMinus size={12} /></button>
-                        <span className="px-2">{item.quantity}</span>
-                        <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} className="bg-gray-200 p-1 rounded"><FaPlus size={12} /></button>
-                      </div>
-                      <button onClick={() => handleRemoveFromCart(item._id)} className="text-red-500 hover:text-red-700"><FaTimes /></button>
-                    </div>
-                  ))}
+      {showCart && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
+          <div className="bg-white w-full max-w-md h-full overflow-y-auto">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h2 className="text-xl font-bold">Your Cart ({cartItemsCount})</h2>
+              <button onClick={() => setShowCart(false)} className="text-gray-500 hover:text-gray-700"><FaTimes size={20} /></button>
+            </div>
+            <div className="p-4">
+              {(cart || []).length === 0 ? (
+                <div className="text-center py-8">
+                  <FaShoppingCart className="mx-auto text-gray-400 text-4xl mb-4" />
+                  <p className="text-gray-500">Your cart is empty</p>
                 </div>
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg flex flex-col gap-2">
-                  <div className="flex justify-between text-xl font-bold"><span>Total: ₹{cartTotal}</span></div>
-                  <button onClick={handleCheckout} disabled={isProcessingPayment} className={`w-full mt-4 py-3 rounded-lg font-semibold ${isProcessingPayment ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"} text-white`}>
-                    {isProcessingPayment ? "Processing..." : "Proceed to Payment"}
-                  </button>
-                </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {(cart || []).map(item => (
+                      <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" loading="lazy" />
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{item.name}</h3>
+                          <p className="text-red-500 font-bold">₹{item.price}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} className="bg-gray-200 p-1 rounded"><FaMinus size={12} /></button>
+                          <span className="px-2">{item.quantity}</span>
+                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} className="bg-gray-200 p-1 rounded"><FaPlus size={12} /></button>
+                        </div>
+                        <button onClick={() => handleRemoveFromCart(item._id)} className="text-red-500 hover:text-red-700"><FaTimes /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg flex flex-col gap-2">
+                    <div className="flex justify-between text-xl font-bold"><span>Total: ₹{cartTotal}</span></div>
+                    <button onClick={handleCheckout} disabled={isProcessingPayment} className={`w-full mt-4 py-3 rounded-lg font-semibold ${isProcessingPayment ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"} text-white`}>
+                      {isProcessingPayment ? "Processing..." : "Proceed to Payment"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>}
+      )}
     </div>
   );
 };

@@ -1,34 +1,30 @@
+// routes/itemRoutes.js
 import express from "express";
 import isAuth from "../middlewares/isAuth.js";
 import upload from "../middlewares/multer.js";
+import { 
+  addItem, 
+  editItem, 
+  getItemById, 
+  deleteItem, 
+  getItemByCity 
+} from "../controllers/itemController.js";
 
 const router = express.Router();
 
-// Temporary item controller functions
-const addItem = async (req, res) => {
-  res.status(201).json({ message: "Item added", item: req.body });
-};
-
-const editItem = async (req, res) => {
-  res.json({ message: "Item updated", item: req.body });
-};
-
-const getItemById = async (req, res) => {
-  res.json({ item: null });
-};
-
-const deleteItem = async (req, res) => {
-  res.json({ message: "Item deleted" });
-};
-
-const getItemByCity = async (req, res) => {
-  res.json({ items: [] });
-};
-
+// Add item
 router.post("/add-item", isAuth, upload.single("image"), addItem);
+
+// Edit item
 router.put("/edit-item/:itemId", isAuth, upload.single("image"), editItem);
+
+// Get item by ID
 router.get("/get-by-id/:itemId", isAuth, getItemById);
+
+// Delete item
 router.delete("/delete/:itemId", isAuth, deleteItem);
+
+// ✅ Correct: Get items by city (calls real controller now)
 router.get("/city/:city", getItemByCity);
 
 export default router;

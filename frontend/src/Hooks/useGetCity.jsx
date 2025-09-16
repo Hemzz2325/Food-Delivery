@@ -1,4 +1,4 @@
-// src/Hooks/useGetCity.jsx
+// src/Hooks/useGetCity.jsx - FIXED VERSION
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
@@ -13,21 +13,23 @@ function useGetCity() {
     // Load cached location first
     try {
       const cached = JSON.parse(localStorage.getItem("user_location"));
-      if (cached && cached.city && cached.city !== "Detecting...") {
-        if (cached.city) dispatch(setCity(cached.city));
-        if (cached.state) dispatch(setState(cached.state));
-        if (cached.address) dispatch(setAddress(cached.address));
-        console.log("✅ Loaded cached location:", cached.city);
+      if (cached && cached.city && cached.city !== "Detecting..." && cached.timestamp) {
+        // Check if cache is less than 1 hour old
+        const oneHour = 60 * 60 * 1000;
+        if (Date.now() - cached.timestamp < oneHour) {
+          dispatch(setCity(cached.city));
+          if (cached.state) dispatch(setState(cached.state));
+          if (cached.address) dispatch(setAddress(cached.address));
+          console.log("✅ Using cached location:", cached.city);
+          return; // Use cached data and skip API calls
+        }
       }
     } catch (e) {
       console.warn("Failed to load cached location:", e);
     }
 
-    // Show detecting state only if we don't have cached data
-    const cachedData = localStorage.getItem("user_location");
-    if (!cachedData) {
-      dispatch(setCity("Detecting..."));
-    }
+    // Show detecting state if no valid cache
+    dispatch(setCity("Detecting..."));
 
     const applyLocation = async (city, stateName, address) => {
       console.log("📍 Applying location:", { city, stateName, address });
@@ -36,7 +38,7 @@ function useGetCity() {
       if (stateName) dispatch(setState(stateName));
       if (address) dispatch(setAddress(address));
 
-      // Cache the location
+      // Cache the location with timestamp
       try {
         localStorage.setItem(
           "user_location",
@@ -53,24 +55,38 @@ function useGetCity() {
 
       // Send to backend
       try {
-        await axios.post(
-          `${serverUrl}/api/user/location`,
-          { city, state: stateName, address },
-          { withCredentials: true }
-        );
-
-        console.log("✅ Location updated on backend");
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          await axios.post(
+            `${serverUrl}/api/user/location`,
+            { city, state: stateName, address },
+            { 
+              withCredentials: true,
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          );
+          console.log("✅ Location updated on backend");
+        }
       } catch (err) {
         console.warn("Backend location update failed:", err.message);
       }
     };
 
     const getIPLocation = async () => {
+      if (!apiKey) {
+        console.warn("❌ VITE_GEOAPIKEY not found in environment");
+        dispatch(setCity("Location unavailable"));
+        return;
+      }
+
       try {
         console.log("🌐 Fetching IP-based location...");
-        const ipRes = await axios.get(`https://api.geoapify.com/v1/ipinfo?apiKey=${apiKey}`);
+        const ipRes = await axios.get(
+          `https://api.geoapify.com/v1/ipinfo?apiKey=${apiKey}`,
+          { timeout: 10000 }
+        );
+        
         const locationData = ipRes.data?.location || ipRes.data?.ip || {};
-
         const city = locationData.city || null;
         const stateName = locationData.state || null;
         const address = locationData.formatted || null;
@@ -83,7 +99,7 @@ function useGetCity() {
           dispatch(setCity("Location unavailable"));
         }
       } catch (error) {
-        console.error("❌ IP location failed:", error);
+        console.error("❌ IP location failed:", error.message);
         dispatch(setCity("Location unavailable"));
       }
     };
@@ -95,9 +111,23 @@ function useGetCity() {
         return;
       }
 
+      if (!apiKey) {
+        console.warn("❌ VITE_GEOAPIKEY not found, skipping GPS");
+        dispatch(setCity("Location unavailable"));
+        return;
+      }
+
       console.log("🛰️ Requesting GPS location...");
+      
+      const timeoutId = setTimeout(() => {
+        console.warn("⏰ GPS timeout, falling back to IP location");
+        getIPLocation();
+      }, 15000);
+
       navigator.geolocation.getCurrentPosition(
         async (position) => {
+          clearTimeout(timeoutId);
+          
           try {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
@@ -105,7 +135,8 @@ function useGetCity() {
             console.log("📍 GPS coordinates:", { latitude, longitude });
 
             const res = await axios.get(
-              `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${apiKey}`
+              `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${apiKey}`,
+              { timeout: 10000 }
             );
 
             const result = res.data?.results?.[0] || {};
@@ -121,17 +152,18 @@ function useGetCity() {
               getIPLocation();
             }
           } catch (err) {
-            console.error("❌ GPS geocoding failed:", err);
+            console.error("❌ GPS geocoding failed:", err.message);
             getIPLocation();
           }
         },
         (error) => {
+          clearTimeout(timeoutId);
           console.warn("❌ GPS location denied/failed:", error.message);
           getIPLocation();
         },
         {
           enableHighAccuracy: false,
-          timeout: 10000,
+          timeout: 15000,
           maximumAge: 1000 * 60 * 5  // 5 minutes
         }
       );

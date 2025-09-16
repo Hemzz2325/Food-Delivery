@@ -15,5 +15,10 @@ orderRouter.post("/create", isAuth, createOrder);
 orderRouter.post("/verify-payment", isAuth, verifyPayment);
 orderRouter.get("/current", isAuth, getCurrentOrder);
 orderRouter.get("/user-orders", isAuth, getUserOrders);
+orderRouter.stack.forEach((layer) => {
+  if (layer.route) {
+    console.log("📌 Auth Route:", Object.keys(layer.route.methods), layer.route.path);
+  }
+});
 
 export default orderRouter;

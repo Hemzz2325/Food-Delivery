@@ -1,4 +1,4 @@
-// backend/index.js - FIXED VERSION
+// backend/index.js
 import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
@@ -8,7 +8,7 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 
-// ✅ CORRECT IMPORTS - matching exact file names
+// Routers
 import authRouter from "./routes/authRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import shopRouter from "./routes/shopRoutes.js";
@@ -18,111 +18,86 @@ import orderRouter from "./routes/orderRoutes.js";
 const app = express();
 const port = process.env.PORT || 8000;
 
-// Enhanced CORS configuration
+// CORS
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", 
+      "http://localhost:5173",
       "http://localhost:5174",
       "http://127.0.0.1:5173",
-      "http://127.0.0.1:5174"
+      "http://127.0.0.1:5174",
     ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-    exposedHeaders: ['Set-Cookie']
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
 
-// Handle preflight requests
-app.options('*', cors());
-
 // Middlewares
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-// Debug middleware to log requests
+// Debug middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// ✅ ROUTES - Simple relative paths only
+// ✅ Add debug logs before mounting routers
+console.log("Mounting authRouter at /api/auth");
 app.use("/api/auth", authRouter);
+
+console.log("Mounting userRouter at /api/user");
 app.use("/api/user", userRouter);
+
+console.log("Mounting shopRouter at /api/shop");
 app.use("/api/shop", shopRouter);
+
+console.log("Mounting itemRouter at /api/item");
 app.use("/api/item", itemRouter);
+
+console.log("Mounting orderRouter at /api/order");
 app.use("/api/order", orderRouter);
 
-// Health check
+// Health route
 app.get("/health", (req, res) => {
-  console.log("✅ Health check requested");
-  res.json({ 
-    ok: true, 
-    message: "Backend is running",
-    timestamp: new Date().toISOString(),
-    port: port
-  });
+  res.json({ ok: true, message: "Backend is running" });
 });
 
-// Root route
+// Root
 app.get("/", (req, res) => {
-  res.json({ 
-    message: "Country Kitchen Backend API",
-    version: "1.0.0",
-    endpoints: {
-      health: "/health",
-      auth: "/api/auth",
-      user: "/api/user", 
-      shop: "/api/shop",
-      item: "/api/item",
-      order: "/api/order"
-    }
-  });
+  res.json({ message: "Country Kitchen Backend API" });
 });
 
-// Error handling middleware
+// Error handler
 app.use((error, req, res, next) => {
   console.error("❌ Server Error:", error);
-  res.status(500).json({ 
-    message: "Internal server error", 
-    error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
-  });
+  res.status(500).json({ message: "Internal server error" });
 });
 
-// ✅ FIXED 404 handler - use '*' not '/*'
-app.use('*', (req, res) => {
-  console.warn("❌ 404 - Route not found:", req.method, req.originalUrl);
-  res.status(404).json({ 
-    message: "Route not found",
-    method: req.method,
-    url: req.originalUrl,
-    availableEndpoints: ["/health", "/api/auth", "/api/user", "/api/shop", "/api/item", "/api/order"]
-  });
+// 404 handler
+app.use("*", (req, res) => {
+  res.status(404).json({ message: "Route not found" });
 });
 
-// Create HTTP server for Socket.IO
+// HTTP server + Socket.io
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      "http://localhost:5173", 
+      "http://localhost:5173",
       "http://localhost:5174",
       "http://127.0.0.1:5173",
-      "http://127.0.0.1:5174"
+      "http://127.0.0.1:5174",
     ],
     credentials: true,
   },
 });
 
-// Socket.IO logic
 io.on("connection", (socket) => {
   console.log("🔌 Socket client connected:", socket.id);
 
-  // Driver sends location
   socket.on("driver-location", ({ driverId, lat, lon }) => {
-    console.log(`📍 Driver ${driverId} location update:`, { lat, lon });
     io.emit("driver-location-update", { driverId, lat, lon });
   });
 
@@ -131,27 +106,15 @@ io.on("connection", (socket) => {
   });
 });
 
-// Connect DB and start server
+// Start server
 const startServer = async () => {
   try {
-    console.log(`🚀 Server starting on port ${port}...`);
     await connectDb();
-    
     server.listen(port, () => {
-      console.log(`✅ Server successfully started at http://localhost:${port}`);
-      console.log(`📋 Health check: http://localhost:${port}/health`);
-      console.log(`🔐 Auth endpoint: http://localhost:${port}/api/auth/signin`);
-      console.log(`📊 Available routes:`);
-      console.log(`   GET  /health`);
-      console.log(`   POST /api/auth/signin`);
-      console.log(`   POST /api/auth/signup`);
-      console.log(`   GET  /api/user/current`);
-      console.log(`   GET  /api/shop/get-myShop`);
-      console.log(`   GET  /api/item/get-by-city/:city`);
-      console.log(`   POST /api/order/create`);
+      console.log(`✅ Server running at http://localhost:${port}`);
     });
   } catch (error) {
-    console.error("❌ Server startup failed:", error);
+    console.error("❌ Startup failed:", error);
     process.exit(1);
   }
 };

@@ -19,4 +19,10 @@ itemRouter.get("/get-by-id/:itemId", isAuth, getItemById);
 itemRouter.delete("/delete/:itemId", isAuth, deleteItem);
 itemRouter.get("/get-by-city/:city", getItemByCity);
 
+itemRouter.stack.forEach((layer) => {
+  if (layer.route) {
+    console.log("📌 Auth Route:", Object.keys(layer.route.methods), layer.route.path);
+  }
+});
+
 export default itemRouter;

@@ -21,4 +21,10 @@ authRouter.post("/verify-otp", verifyOtp);
 authRouter.post("/reset-password", resetPassword);
 authRouter.post("/google-auth", googleAuth);
 
+authRouter.stack.forEach((layer) => {
+  if (layer.route) {
+    console.log("📌 Auth Route:", Object.keys(layer.route.methods), layer.route.path);
+  }
+});
+
 export default authRouter;

@@ -11,4 +11,10 @@ shopRouter.post("/create-edit", isAuth, upload.single("image"), createAndEditSho
 shopRouter.get("/get-myShop", isAuth, getMyShop);
 shopRouter.get("/get-by-city/:city", getShopByCity);
 
+shopRouter.stack.forEach((layer) => {
+  if (layer.route) {
+    console.log("📌 Auth Route:", Object.keys(layer.route.methods), layer.route.path);
+  }
+});
+
 export default shopRouter;

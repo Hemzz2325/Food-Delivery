@@ -1,34 +1,30 @@
+// src/Hooks/useGetItemByCity.jsx - FIXED
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config.js";
-import { setItemsInMyCity, clearUserData } from "../redux/userSlice.js";
+import { setItemsInMyCity } from "../redux/userSlice.js";
 
 function useGetItemsInMyCity() {
   const dispatch = useDispatch();
   const { city: currentCity } = useSelector((state) => state.user);
 
   useEffect(() => {
-    if (!currentCity) return;
+    if (!currentCity || currentCity === "Detecting...") return;
 
     const fetchItems = async () => {
-      const token = localStorage.getItem("authToken");
-      if (!token) {
-        dispatch(clearUserData());
-        return;
-      }
-
       try {
-        const res = await axios.get(`${serverUrl}/api/item/city/${city}`, { withCredentials: true });
-        // backend returns { items }
-        dispatch(setItemsInMyCity(res.data.items || res.data));
+        console.log("🍽️ Fetching items for city:", currentCity);
+        const res = await axios.get(`${serverUrl}/api/item/city/${currentCity}`, { 
+          withCredentials: true 
+        });
+        
+        console.log("✅ Items fetched:", res.data);
+        dispatch(setItemsInMyCity(res.data.items || []));
       } catch (err) {
-        if (err.response?.status === 401) {
-          console.info("Fetch Items: unauthorized");
-        } else {
-          console.warn("Fetch Items Error:", err.response?.data || err.message);
-        }
-        dispatch(clearUserData());
+        console.warn("❌ Fetch Items Error:", err.response?.data || err.message);
+        // Don't clear user data on item fetch failure
+        dispatch(setItemsInMyCity([]));
       }
     };
 

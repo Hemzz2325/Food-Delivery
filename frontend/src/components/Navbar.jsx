@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx
+// src/components/Navbar.jsx - FIXED
 import React, { useState } from "react";
 import { FaMapMarkerAlt, FaPlus, FaReceipt, FaShoppingCart } from "react-icons/fa";
 import { FiSearch } from "react-icons/fi";
@@ -16,6 +16,9 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
   const [showinfo, setShowinfo] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const dispatch = useDispatch();
+
+  // Fix display location with fallback
+  const displayLocation = city && city !== "Detecting..." ? city : "Detecting location...";
 
   const handleLogout = async () => {
     try {
@@ -40,8 +43,8 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
         <div className="hidden md:flex items-center w-[300px] md:w-[400px] lg:w-[500px] h-[50px] bg-white border border-gray-300 rounded-xl shadow-md hover:shadow-xl px-3 gap-3 transition-all duration-300">
           <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
             <FaMapMarkerAlt className="text-red-500" size={20} />
-            <span className="truncate text-sm" title={city || "Select location"}>
-              {city || "Select location"}
+            <span className="truncate text-sm" title={displayLocation}>
+              {displayLocation}
             </span>
           </div>
 
@@ -164,7 +167,7 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
 
       {/* Mobile Search Bar */}
       {showSearch && userData?.role === "user" && (
-        <div className="md:hidden w-[90%] mx-auto mt-2 h-[50px] bg-white border border-gray-300 rounded-xl shadow-md flex items-center px-3 gap-3 transition-all duration-300">
+        <div className="md:hidden w-[90%] mx-auto mt-2 mb-2 h-[50px] bg-white border border-gray-300 rounded-xl shadow-md flex items-center px-3 gap-3 transition-all duration-300">
           <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
             <FaMapMarkerAlt className="text-red-500" size={20} />
             <span className="truncate text-sm" title={displayLocation}>

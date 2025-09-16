@@ -10,6 +10,9 @@ import { Server } from "socket.io";
 // Import routers
 import userRouter from "./routes/userRoutes.js";
 import authRouter from "./routes/authRoutes.js";
+import shopRouter from "./routes/shopRoutes.js";
+import itemRouter from "./routes/itemRoutes.js";
+import orderRouter from "./routes/orderRoutes.js";
 
 dotenv.config();
 
@@ -38,6 +41,9 @@ app.get("/health", (req, res) => {
 // Mount routers
 app.use("/api/user", userRouter);
 app.use("/api/auth", authRouter); // Added auth routes
+app.use("/api/shop", shopRouter);   // /api/shop/create-edit, /api/shop/my
+app.use("/api/item", itemRouter);   // /api/item/add-item
+app.use("/api/order", orderRouter);
 
 // Create HTTP server for Socket.IO
 const server = http.createServer(app);
@@ -78,3 +84,4 @@ const startServer = async () => {
 };
 
 startServer();
+export{io}

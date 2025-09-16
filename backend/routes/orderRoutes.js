@@ -1,12 +1,16 @@
+
+
+// backend/routes/orderRoutes.js
 import express from "express";
 import isAuth from "../middlewares/isAuth.js";
+import { createOrder, verifyPayment } from "../controllers/orderController.js";
 
 const router = express.Router();
 
-const createOrder = async (req, res) => {
-  res.json({ message: "Order created" });
-};
-
+// Create order
 router.post("/create", isAuth, createOrder);
+
+// Verify payment
+router.post("/verify-payment", isAuth, verifyPayment);
 
 export default router;

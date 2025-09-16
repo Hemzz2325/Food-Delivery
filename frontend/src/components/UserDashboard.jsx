@@ -6,11 +6,10 @@ import { useSelector, useDispatch } from "react-redux";
 import FoodCard from "./FoodCard";
 import CategoryCard from "./CategoryCard";
 import TrackDelivery from "./TrackDelivery";
+import ShopCard from "./ShopCard";
 import useCurrentOrder from "../Hooks/useCurrentOrder.js";
 import useGetCity from "../Hooks/useGetCity.jsx";
-import { setShopsInMyCity } from "../redux/userSlice";
-import ShopCard from "./ShopCard"; // import new ShopCard
-import { addToCart, removeFromCart, updateCartQuantity, clearCart } from "../redux/userSlice";
+import { addToCart, removeFromCart, updateCartQuantity, clearCart, setShopsInMyCity } from "../redux/userSlice";
 import axios from "axios";
 import { serverUrl } from "../config";
 
@@ -25,8 +24,8 @@ import menu_7 from "../assets/menu_7.png";
 import menu_8 from "../assets/menu_8.png";
 
 const UserDashboard = () => {
-  useCurrentOrder(); // Hook safely used at top-level
-  useGetCity();      // Detects user location
+  useCurrentOrder();
+  useGetCity();
 
   const dispatch = useDispatch();
   const {
@@ -42,6 +41,7 @@ const UserDashboard = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [filteredItems, setFilteredItems] = useState(itemsInMyCity || []);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [userOrders, setUserOrders] = useState([]);
 
   const driverId = currentOrder?.driverId;
 
@@ -54,27 +54,27 @@ const UserDashboard = () => {
   const [showRightShopButton, setShowRightShopButton] = useState(false);
 
   const categoryImages = {
-    "breakfast": menu_1,
-    "lunch": menu_6,
-    "dinner": menu_7,
-    "snacks": menu_2,
-    "drinks": menu_8,
+    breakfast: menu_1,
+    lunch: menu_6,
+    dinner: menu_7,
+    snacks: menu_2,
+    drinks: menu_8,
     "south indian": menu_6,
     "north indian": menu_5,
-    "punjabi": menu_6,
-    "chinese": menu_8,
-    "juices": menu_3,
-    "desserts": menu_3,
-    "sandwich": menu_4,
-    "burger": menu_2,
-    "pizzas": menu_7
+    punjabi: menu_6,
+    chinese: menu_8,
+    juices: menu_3,
+    desserts: menu_3,
+    sandwich: menu_4,
+    burger: menu_2,
+    pizzas: menu_7,
   };
 
-  // Filter items by selected category
+  // Filter items by category
   useEffect(() => {
     if (selectedCategory) {
       const filtered = (itemsInMyCity || []).filter(
-        item => item.category?.toLowerCase() === selectedCategory.toLowerCase()
+        (item) => item.category?.toLowerCase() === selectedCategory.toLowerCase()
       );
       setFilteredItems(filtered);
     } else {
@@ -82,22 +82,37 @@ const UserDashboard = () => {
     }
   }, [selectedCategory, itemsInMyCity]);
 
-  // Fetch shops in user city
+  // Fetch shops in current city
   useEffect(() => {
     const fetchShops = async () => {
       if (!currentCity || currentCity === "Detecting..." || currentCity === "Location unavailable") return;
       try {
         const { data } = await axios.get(`${serverUrl}/api/shop/city/${currentCity}`);
         dispatch(setShopsInMyCity(data.shops || []));
-        console.log("✅ Shops fetched:", data.shops);
       } catch (err) {
-        console.error("❌ Failed to fetch shops:", err.message);
-        dispatch(setShopsInMyCity([])); // clear shops on error
+        console.error("Failed to fetch shops:", err);
+        dispatch(setShopsInMyCity([]));
       }
     };
-
     fetchShops();
   }, [currentCity, dispatch]);
+
+  // Fetch user orders
+  const fetchOrders = async () => {
+    try {
+      const { data } = await axios.get(`${serverUrl}/api/order/my-orders`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+        withCredentials: true,
+      });
+      setUserOrders(data.orders || []);
+    } catch (err) {
+      console.error("Failed to fetch orders:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   // Cart handlers
   const handleAddToCart = (item) => dispatch(addToCart(item));
@@ -142,14 +157,15 @@ const UserDashboard = () => {
     };
   }, [categories, shopsInMyCity]);
 
-  // Razorpay integration
-  const initializeRazorpay = () => new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
+  // Razorpay payment
+  const initializeRazorpay = () =>
+    new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
 
   const handleCheckout = async () => {
     if ((cart || []).length === 0) return;
@@ -164,14 +180,13 @@ const UserDashboard = () => {
       }
 
       const orderData = {
-        items: (cart || []).map(item => ({ itemId: item._id, quantity: item.quantity, price: item.price })),
+        items: (cart || []).map((item) => ({ itemId: item._id, quantity: item.quantity, price: item.price })),
         totalAmount: cartTotal,
-        currency: "INR"
       };
 
       const { data } = await axios.post(`${serverUrl}/api/order/create`, orderData, {
         withCredentials: true,
-        headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
       });
 
       const options = {
@@ -183,17 +198,22 @@ const UserDashboard = () => {
         order_id: data.id,
         handler: async (response) => {
           try {
-            await axios.post(`${serverUrl}/api/order/verify-payment`, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            }, {
-              withCredentials: true,
-              headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
-            });
+            await axios.post(
+              `${serverUrl}/api/order/verify-payment`,
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+              {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+              }
+            );
 
             dispatch(clearCart());
             setShowCart(false);
+            await fetchOrders(); // refresh orders after payment
             alert("Payment successful!");
           } catch (error) {
             console.error("Payment verification failed:", error);
@@ -203,9 +223,9 @@ const UserDashboard = () => {
         prefill: {
           name: currentOrder?.userName || "",
           email: currentOrder?.userEmail || "",
-          contact: currentOrder?.userPhone || ""
+          contact: currentOrder?.userPhone || "",
         },
-        theme: { color: "#ff4d2d" }
+        theme: { color: "#ff4d2d" },
       };
 
       const razorpay = new window.Razorpay(options);
@@ -228,62 +248,78 @@ const UserDashboard = () => {
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
         <h1 className="text-gray-800 text-2xl sm:text-3xl">Inspiration for your first Order</h1>
         <div className="w-full relative">
-          {showLeftButton && <button onClick={() => scrollHandler(cateScroll, "left")} className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleLeft /></button>}
+          {showLeftButton && (
+            <button
+              onClick={() => scrollHandler(cateScroll, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleLeft />
+            </button>
+          )}
           <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={cateScroll}>
             {(categories || []).map((cate, index) => (
-              <div key={index} onClick={() => handleCategoryClick(cate)} className={`cursor-pointer ${selectedCategory === cate ? 'ring-2 ring-red-500' : ''}`}>
+              <div
+                key={index}
+                onClick={() => handleCategoryClick(cate)}
+                className={`cursor-pointer ${selectedCategory === cate ? "ring-2 ring-red-500" : ""}`}
+              >
                 <CategoryCard name={cate} image={categoryImages[cate.toLowerCase()] || menu_1} />
               </div>
             ))}
           </div>
-          {showRightButton && <button onClick={() => scrollHandler(cateScroll, "right")} className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleRight /></button>}
+          {showRightButton && (
+            <button
+              onClick={() => scrollHandler(cateScroll, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleRight />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Shops */}
-    <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
-  <h1 className="text-gray-800 text-2xl sm:text-3xl">
-    Best Shops in {currentCity || "your city"}
-  </h1>
-
-  <div className="w-full relative">
-    {/* Left Scroll Button */}
-    {showLeftShopButton && (
-      <button
-        onClick={() => scrollHandler(shopScroll, "left")}
-        className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
-      >
-        <FaArrowCircleLeft />
-      </button>
-    )}
-
-    {/* Shops Scrollable */}
-    <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={shopScroll}>
-      {(shopsInMyCity || []).map((shop, index) => (
-        <ShopCard key={shop._id || index} shop={shop} />
-      ))}
-    </div>
-
-    {/* Right Scroll Button */}
-    {showRightShopButton && (
-      <button
-        onClick={() => scrollHandler(shopScroll, "right")}
-        className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
-      >
-        <FaArrowCircleRight />
-      </button>
-    )}
-  </div>
-
-  {console.log("🛍️ Shops in my city:", shopsInMyCity)}
-</div>
-
+      <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">Best Shops in {currentCity || "your city"}</h1>
+        <div className="w-full relative">
+          {showLeftShopButton && (
+            <button
+              onClick={() => scrollHandler(shopScroll, "left")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleLeft />
+            </button>
+          )}
+          <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={shopScroll}>
+            {(shopsInMyCity || []).map((shop, index) => (
+              <ShopCard key={shop._id || index} shop={shop} />
+            ))}
+          </div>
+          {showRightShopButton && (
+            <button
+              onClick={() => scrollHandler(shopScroll, "right")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
+            >
+              <FaArrowCircleRight />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Food Items */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
         <div className="flex justify-between items-center w-full">
-          <h1 className="text-gray-800 text-2xl sm:text-3xl">{selectedCategory ? `${selectedCategory} Items` : "Suggested Food Items"}</h1>
-          {selectedCategory && <button onClick={() => setSelectedCategory("")} className="text-red-500 hover:text-red-700 font-medium">Clear Filter</button>}
+          <h1 className="text-gray-800 text-2xl sm:text-3xl">
+            {selectedCategory ? `${selectedCategory} Items` : "Suggested Food Items"}
+          </h1>
+          {selectedCategory && (
+            <button
+              onClick={() => setSelectedCategory("")}
+              className="text-red-500 hover:text-red-700 font-medium"
+            >
+              Clear Filter
+            </button>
+          )}
         </div>
         <div className="w-full h-auto flex flex-wrap gap-[20px] justify-center">
           {(filteredItems || []).length === 0 ? (
@@ -292,7 +328,12 @@ const UserDashboard = () => {
             </div>
           ) : (
             (filteredItems || []).map((item, index) => (
-              <FoodCard key={item._id || index} data={item} onAddToCart={handleAddToCart} cartItem={(cart || []).find(cartItem => cartItem._id === item._id)} />
+              <FoodCard
+                key={item._id || index}
+                data={item}
+                onAddToCart={handleAddToCart}
+                cartItem={(cart || []).find((cartItem) => cartItem._id === item._id)}
+              />
             ))
           )}
         </div>
@@ -306,13 +347,45 @@ const UserDashboard = () => {
         </div>
       )}
 
+      {/* My Orders */}
+      <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">My Orders</h1>
+        {userOrders.length === 0 ? (
+          <p className="text-gray-500 py-4">You have no orders yet.</p>
+        ) : (
+          <div className="flex flex-col gap-4 w-full">
+            {userOrders.map((order) => (
+              <div key={order._id} className="p-4 border rounded-lg bg-white shadow-sm">
+                <p className="font-semibold">Order ID: {order._id}</p>
+                <p>
+                  Status:{" "}
+                  <span className={`font-bold ${order.status === "paid" ? "text-green-600" : "text-yellow-600"}`}>
+                    {order.status}
+                  </span>
+                </p>
+                <p>Total: ₹{order.totalAmount}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {order.items.map(({ item, quantity }) => (
+                    <div key={item._id} className="border p-2 rounded">
+                      {item.name} x {quantity}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Cart Sidebar */}
       {showCart && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
           <div className="bg-white w-full max-w-md h-full overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center">
               <h2 className="text-xl font-bold">Your Cart ({cartItemsCount})</h2>
-              <button onClick={() => setShowCart(false)} className="text-gray-500 hover:text-gray-700"><FaTimes size={20} /></button>
+              <button onClick={() => setShowCart(false)} className="text-gray-500 hover:text-gray-700">
+                <FaTimes size={20} />
+              </button>
             </div>
             <div className="p-4">
               {(cart || []).length === 0 ? (
@@ -323,7 +396,7 @@ const UserDashboard = () => {
               ) : (
                 <>
                   <div className="space-y-4">
-                    {(cart || []).map(item => (
+                    {(cart || []).map((item) => (
                       <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
                         <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" loading="lazy" />
                         <div className="flex-1">
@@ -331,17 +404,37 @@ const UserDashboard = () => {
                           <p className="text-red-500 font-bold">₹{item.price}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} className="bg-gray-200 p-1 rounded"><FaMinus size={12} /></button>
+                          <button
+                            onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
+                            className="bg-gray-200 p-1 rounded"
+                          >
+                            <FaMinus size={12} />
+                          </button>
                           <span className="px-2">{item.quantity}</span>
-                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} className="bg-gray-200 p-1 rounded"><FaPlus size={12} /></button>
+                          <button
+                            onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                            className="bg-gray-200 p-1 rounded"
+                          >
+                            <FaPlus size={12} />
+                          </button>
                         </div>
-                        <button onClick={() => handleRemoveFromCart(item._id)} className="text-red-500 hover:text-red-700"><FaTimes /></button>
+                        <button onClick={() => handleRemoveFromCart(item._id)} className="text-red-500 hover:text-red-700">
+                          <FaTimes />
+                        </button>
                       </div>
                     ))}
                   </div>
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg flex flex-col gap-2">
-                    <div className="flex justify-between text-xl font-bold"><span>Total: ₹{cartTotal}</span></div>
-                    <button onClick={handleCheckout} disabled={isProcessingPayment} className={`w-full mt-4 py-3 rounded-lg font-semibold ${isProcessingPayment ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"} text-white`}>
+                    <div className="flex justify-between text-xl font-bold">
+                      <span>Total: ₹{cartTotal}</span>
+                    </div>
+                    <button
+                      onClick={handleCheckout}
+                      disabled={isProcessingPayment}
+                      className={`w-full mt-4 py-3 rounded-lg font-semibold ${
+                        isProcessingPayment ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"
+                      } text-white`}
+                    >
                       {isProcessingPayment ? "Processing..." : "Proceed to Payment"}
                     </button>
                   </div>

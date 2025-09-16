@@ -1,5 +1,4 @@
 // backend/controllers/orderController.js
-// backend/controllers/orderController.js
 import crypto from "crypto";
 import Order from "../models/orderModel.js";
 
@@ -30,7 +29,7 @@ try {
 // Create Order
 export const createOrder = async (req, res) => {
   try {
-    const { items, totalAmount } = req.body;
+    const { items, totalAmount, deliveryAddress } = req.body;
     const userId = req.userId;
 
     if (!items || !totalAmount) {
@@ -44,7 +43,7 @@ export const createOrder = async (req, res) => {
     }
 
     const options = {
-      amount: totalAmount * 100,
+      amount: totalAmount * 100, // amount in paise
       currency: "INR",
       receipt: `order_${Date.now()}`,
       notes: { userId, itemCount: items.length },
@@ -61,6 +60,7 @@ export const createOrder = async (req, res) => {
       })),
       totalAmount,
       razorpayOrderId: razorpayOrder.id,
+      deliveryAddress,
       status: "pending",
     });
 
@@ -77,19 +77,66 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Rest of controllers remain unchanged...
-
 // Verify Payment
 export const verifyPayment = async (req, res) => {
-  res.json({ message: "verifyPayment stub" });
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: "Missing payment details" });
+    }
+
+    // Generate signature and verify
+    const generated_signature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest("hex");
+
+    if (generated_signature !== razorpay_signature) {
+      return res.status(400).json({ message: "Payment verification failed" });
+    }
+
+    const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.razorpayPaymentId = razorpay_payment_id;
+    order.razorpaySignature = razorpay_signature;
+    order.status = "paid";
+    order.paidAt = new Date();
+
+    await order.save();
+
+    res.json({ message: "Payment verified successfully", order });
+  } catch (err) {
+    console.error("verifyPayment error:", err);
+    res.status(500).json({ message: "Internal server error", error: err.message });
+  }
 };
 
-// Get Current Order
+// Get Current Order (latest order for user)
 export const getCurrentOrder = async (req, res) => {
-  res.json({ message: "getCurrentOrder stub" });
+  try {
+    const order = await Order.findOne({ user: req.userId })
+      .sort({ createdAt: -1 })
+      .populate("items.item");
+
+    if (!order) return res.status(404).json({ message: "No orders found" });
+
+    res.json({ order });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch current order", error: err.message });
+  }
 };
 
-// Get User Orders
+// Get all orders for the user
 export const getUserOrders = async (req, res) => {
-  res.json({ message: "getUserOrders stub" });
+  try {
+    const orders = await Order.find({ user: req.userId })
+      .populate("items.item")
+      .sort({ createdAt: -1 });
+
+    res.json({ orders });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch orders", error: err.message });
+  }
 };

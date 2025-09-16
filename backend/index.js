@@ -1,24 +1,19 @@
-// backend/index.js
-
-// Core modules
-import http from "http";
-
-// Third-party modules
+// backend/index.js - FIXED VERSION
 import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+import connectDb from "./config/db.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import http from "http";
 import { Server } from "socket.io";
 
-// Local modules
-import connectDb from "./config/db.js";
+// ✅ CORRECT IMPORTS - matching exact file names
 import authRouter from "./routes/authRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import shopRouter from "./routes/shopRoutes.js";
 import itemRouter from "./routes/itemRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -53,7 +48,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Correct routes using relative paths
+// ✅ ROUTES - Simple relative paths only
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/shop", shopRouter);
@@ -96,8 +91,8 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('/*', (req, res) => {
+// ✅ FIXED 404 handler - use '*' not '/*'
+app.use('*', (req, res) => {
   console.warn("❌ 404 - Route not found:", req.method, req.originalUrl);
   res.status(404).json({ 
     message: "Route not found",
@@ -143,10 +138,10 @@ const startServer = async () => {
     await connectDb();
     
     server.listen(port, () => {
-      console.log(`Server successfully started at http://localhost:${port}`);
-      console.log(` Health check: http://localhost:${port}/health`);
-      console.log(` Auth endpoint: http://localhost:${port}/api/auth/signin`);
-      console.log(` Available routes:`);
+      console.log(`✅ Server successfully started at http://localhost:${port}`);
+      console.log(`📋 Health check: http://localhost:${port}/health`);
+      console.log(`🔐 Auth endpoint: http://localhost:${port}/api/auth/signin`);
+      console.log(`📊 Available routes:`);
       console.log(`   GET  /health`);
       console.log(`   POST /api/auth/signin`);
       console.log(`   POST /api/auth/signup`);

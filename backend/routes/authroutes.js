@@ -1,10 +1,18 @@
 // routes/authRoutes.js
 import express from "express";
-import { googleAuth, resetPassword, sendOtp, signIn, signOut, signUp, verifyOtp } from "../controllers/authController.js";
+import { 
+  googleAuth, 
+  resetPassword, 
+  sendOtp, 
+  signIn, 
+  signOut, 
+  signUp, 
+  verifyOtp 
+} from "../controllers/authController.js";
 
 const authRouter = express.Router();
 
-// ✅ FIXED - All routes use simple relative paths without leading slash
+// ✅ FIXED - Simple relative paths
 authRouter.post("/signup", signUp);
 authRouter.post("/signin", signIn);
 authRouter.post("/signout", signOut);

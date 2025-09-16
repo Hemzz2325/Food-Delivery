@@ -5,7 +5,7 @@ import { getCurrentUser, updateLocation } from "../controllers/userController.js
 
 const userRouter = express.Router();
 
-// ✅ FIXED - All routes use simple relative paths
+// ✅ FIXED - Simple relative paths
 userRouter.get("/current", isAuth, getCurrentUser);
 userRouter.post("/update-location", isAuth, updateLocation);
 

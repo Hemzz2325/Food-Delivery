@@ -19,7 +19,7 @@ function useGetItemsInMyCity() {
       }
 
       try {
-        const res = await axios.get(`${serverUrl}/api/item/get-by-city/${encodeURIComponent(currentCity)}`, { withCredentials: true });
+        const res = await axios.get(`${serverUrl}/api/item/city/${city}`, { withCredentials: true });
         // backend returns { items }
         dispatch(setItemsInMyCity(res.data.items || res.data));
       } catch (err) {

@@ -31,18 +31,18 @@ function useGetCity() {
 
     const applyLocation = async (city, stateName, address) => {
       console.log("📍 Applying location:", { city, stateName, address });
-      
+
       if (city) dispatch(setCity(city));
       if (stateName) dispatch(setState(stateName));
       if (address) dispatch(setAddress(address));
-      
+
       // Cache the location
       try {
         localStorage.setItem(
           "user_location",
-          JSON.stringify({ 
-            city: city || null, 
-            state: stateName || null, 
+          JSON.stringify({
+            city: city || null,
+            state: stateName || null,
             address: address || null,
             timestamp: Date.now()
           })
@@ -54,10 +54,11 @@ function useGetCity() {
       // Send to backend
       try {
         await axios.post(
-          `${serverUrl}/api/user/update-location`,
+          `${serverUrl}/api/user/location`,
           { city, state: stateName, address },
           { withCredentials: true }
         );
+
         console.log("✅ Location updated on backend");
       } catch (err) {
         console.warn("Backend location update failed:", err.message);
@@ -69,11 +70,11 @@ function useGetCity() {
         console.log("🌐 Fetching IP-based location...");
         const ipRes = await axios.get(`https://api.geoapify.com/v1/ipinfo?apiKey=${apiKey}`);
         const locationData = ipRes.data?.location || ipRes.data?.ip || {};
-        
+
         const city = locationData.city || null;
         const stateName = locationData.state || null;
         const address = locationData.formatted || null;
-        
+
         if (city) {
           console.log("✅ IP location found:", city);
           applyLocation(city, stateName, address);
@@ -100,18 +101,18 @@ function useGetCity() {
           try {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
-            
+
             console.log("📍 GPS coordinates:", { latitude, longitude });
-            
+
             const res = await axios.get(
               `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${apiKey}`
             );
-            
+
             const result = res.data?.results?.[0] || {};
             const city = result.city || result.town || result.village || null;
             const stateName = result.state || null;
             const address = result.formatted || null;
-            
+
             if (city) {
               console.log("✅ GPS location found:", city);
               applyLocation(city, stateName, address);
@@ -128,9 +129,9 @@ function useGetCity() {
           console.warn("❌ GPS location denied/failed:", error.message);
           getIPLocation();
         },
-        { 
-          enableHighAccuracy: false, 
-          timeout: 10000, 
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
           maximumAge: 1000 * 60 * 5  // 5 minutes
         }
       );

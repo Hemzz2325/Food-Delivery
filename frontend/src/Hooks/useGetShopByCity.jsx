@@ -22,7 +22,7 @@ function useGetShopByCity() {
       }
 
       try {
-        const res = await axios.get(`${serverUrl}/api/shop/get-by-city/${encodeURIComponent(currentCity)}`, { withCredentials: true });
+        const res = await axios.get(`${serverUrl}/api/shop/city/${city}`, { withCredentials: true });
         dispatch(setShopInMyCity(res.data.shops || res.data));
       } catch (err) {
         console.warn("Fetch Shops Error:", err.response?.data || err.message);

@@ -17,7 +17,8 @@ function useGetMyshop() {
 
       try {
         dispatch(setLoading(true));
-        const res = await axios.get(`${serverUrl}/api/shop/get-myShop`, { withCredentials: true });
+        const res = await axios.get(`${serverUrl}/api/shop/my`, { withCredentials: true });
+
         dispatch(setMyShopData(res.data.shop || res.data));
       } catch (err) {
         console.warn("Fetch MyShop Error:", err.response?.data || err.message);

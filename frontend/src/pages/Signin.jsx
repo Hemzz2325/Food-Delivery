@@ -23,18 +23,20 @@ const SignIn = () => {
   const testBackendConnection = async () => {
     try {
       console.log("🔍 Testing backend connection to:", serverUrl);
-      const response = await axios.get(`${serverUrl}/health`, {
+      // Attempt any request, but ignore 404
+      await axios.get(`${serverUrl}/api/auth/signin`, {
         timeout: 5000,
-        withCredentials: true
+        withCredentials: true,
       });
-      console.log("✅ Backend connection successful:", response.data);
+      console.log("✅ Backend connection successful");
       return true;
     } catch (err) {
-      console.error("❌ Backend connection failed:", err.message);
-      console.error("   URL attempted:", `${serverUrl}/health`);
-      if (err.code === 'ECONNREFUSED') {
-        console.error("   Make sure backend is running on port 8000");
+      if (err.response?.status === 404) {
+        // 404 is okay for health check
+        console.warn("⚠️ Health check 404 ignored. Backend seems running.");
+        return true;
       }
+      console.error("❌ Backend connection failed:", err.message);
       return false;
     }
   };
@@ -47,22 +49,22 @@ const SignIn = () => {
 
     try {
       console.log("🔐 Attempting signin to:", `${serverUrl}/api/auth/signin`);
-      
+
       // Test backend connection first
       const isBackendRunning = await testBackendConnection();
       if (!isBackendRunning) {
-        throw new Error("Backend server is not running. Please start the backend server on port 8000.");
+        throw new Error(
+          "Backend server is not running. Please start the backend server on port 8000."
+        );
       }
 
       const res = await axios.post(
         `${serverUrl}/api/auth/signin`,
         { email, password },
-        { 
+        {
           withCredentials: true,
           timeout: 10000, // 10 second timeout
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: { "Content-Type": "application/json" },
         }
       );
 
@@ -81,15 +83,17 @@ const SignIn = () => {
       navigate("/");
     } catch (err) {
       console.error("❌ Signin Error:", err);
-      
+
       let errorMessage = "Signin failed. Please try again.";
-      
-      if (err.code === 'ECONNREFUSED') {
-        errorMessage = "Cannot connect to server. Please make sure the backend is running on port 8000.";
-      } else if (err.code === 'ENOTFOUND') {
+
+      if (err.code === "ECONNREFUSED") {
+        errorMessage =
+          "Cannot connect to server. Please make sure the backend is running on port 8000.";
+      } else if (err.code === "ENOTFOUND") {
         errorMessage = "Server not found. Please check your network connection.";
       } else if (err.response?.status === 404) {
-        errorMessage = "Signin endpoint not found. Please check backend routes.";
+        errorMessage =
+          "Signin endpoint not found. Please check backend routes.";
       } else if (err.response?.status === 500) {
         errorMessage = "Server error. Please try again later.";
       } else if (err.response?.data?.message) {
@@ -97,7 +101,7 @@ const SignIn = () => {
       } else if (err.response?.data?.error) {
         errorMessage = err.response.data.error;
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -113,12 +117,14 @@ const SignIn = () => {
       console.log("🔍 Testing backend connection before Google auth...");
       const isBackendRunning = await testBackendConnection();
       if (!isBackendRunning) {
-        throw new Error("Backend server is not running. Please start the backend server on port 8000.");
+        throw new Error(
+          "Backend server is not running. Please start the backend server on port 8000."
+        );
       }
 
       console.log("🔥 Initiating Google signin...");
       const firebaseResult = await signInWithPopup(auth, provider);
-      
+
       const payload = {
         fullName: firebaseResult?.user?.displayName || "",
         email: firebaseResult?.user?.email || "",
@@ -129,9 +135,7 @@ const SignIn = () => {
       const res = await axios.post(`${serverUrl}/api/auth/google-auth`, payload, {
         withCredentials: true,
         timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { "Content-Type": "application/json" },
       });
 
       console.log("✅ Google auth successful:", res.data);
@@ -149,15 +153,16 @@ const SignIn = () => {
       navigate("/");
     } catch (err) {
       console.error("❌ Google Signin Error:", err);
-      
+
       let errorMessage = "Google Auth failed. Try again.";
-      
-      if (err.code === 'ECONNREFUSED') {
-        errorMessage = "Cannot connect to server. Please make sure the backend is running on port 8000.";
+
+      if (err.code === "ECONNREFUSED") {
+        errorMessage =
+          "Cannot connect to server. Please make sure the backend is running on port 8000.";
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -171,9 +176,7 @@ const SignIn = () => {
         <p className="text-gray-500">Sign in to continue enjoying tasty food</p>
 
         {/* Backend Status Indicator */}
-        <div className="mt-2 text-xs text-gray-500">
-          Backend: {serverUrl}
-        </div>
+        <div className="mt-2 text-xs text-gray-500">Backend: {serverUrl}</div>
 
         <form onSubmit={handleSignIn}>
           {/* Email */}

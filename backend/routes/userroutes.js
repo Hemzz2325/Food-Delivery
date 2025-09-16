@@ -1,19 +1,11 @@
-// routes/userRoutes.js
+// routes/userRoutes.js - FIXED
 import express from "express";
 import isAuth from "../middlewares/isAuth.js";
 import { getCurrentUser, updateLocation } from "../controllers/userController.js";
 
-const userRouter = express.Router();
+const router = express.Router();
 
-// ✅ FIXED - Simple relative paths
-userRouter.get("/current", isAuth, getCurrentUser);
-userRouter.post("/update-location", isAuth, updateLocation);
+router.get("/current", isAuth, getCurrentUser);
+router.post("/location", isAuth, updateLocation); // Simplified path
 
-
-userRouter.stack.forEach((layer) => {
-  if (layer.route) {
-    console.log("📌 Auth Route:", Object.keys(layer.route.methods), layer.route.path);
-  }
-});
-
-export default userRouter;
+export default router;

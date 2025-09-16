@@ -22,7 +22,6 @@ import menu_7 from "../assets/menu_7.png";
 import menu_8 from "../assets/menu_8.png";
 
 const UserDashboard = () => {
-  // Try to fetch current order, but don't break if it fails
   try {
     useCurrentOrder();
   } catch (error) {
@@ -37,11 +36,11 @@ const UserDashboard = () => {
     categories = [],
     currentOrder,
     cart = [],
-  } = useSelector((state) => state.user);
+  } = useSelector((state) => state.user || {});
 
   const [showCart, setShowCart] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [filteredItems, setFilteredItems] = useState(itemsInMyCity);
+  const [filteredItems, setFilteredItems] = useState(itemsInMyCity || []);
   const [selectedCategory, setSelectedCategory] = useState("");
 
   const driverId = currentOrder?.driverId;
@@ -54,7 +53,6 @@ const UserDashboard = () => {
   const [showLeftShopButton, setShowLeftShopButton] = useState(false);
   const [showRightShopButton, setShowRightShopButton] = useState(false);
 
-  // Category images mapping
   const categoryImages = {
     "breakfast": menu_1,
     "lunch": menu_6,
@@ -72,40 +70,27 @@ const UserDashboard = () => {
     "pizzas": menu_7
   };
 
-  // Filter items by category
   useEffect(() => {
     if (selectedCategory) {
-      const filtered = itemsInMyCity.filter(item => 
-        item.category.toLowerCase() === selectedCategory.toLowerCase()
+      const filtered = (itemsInMyCity || []).filter(
+        item => item.category?.toLowerCase() === selectedCategory.toLowerCase()
       );
       setFilteredItems(filtered);
     } else {
-      setFilteredItems(itemsInMyCity);
+      setFilteredItems(itemsInMyCity || []);
     }
   }, [selectedCategory, itemsInMyCity]);
 
-  // Cart functions
-  const handleAddToCart = (item) => {
-    dispatch(addToCart(item));
-  };
-
-  const handleRemoveFromCart = (itemId) => {
-    dispatch(removeFromCart(itemId));
-  };
-
+  const handleAddToCart = (item) => dispatch(addToCart(item));
+  const handleRemoveFromCart = (itemId) => dispatch(removeFromCart(itemId));
   const handleUpdateQuantity = (itemId, quantity) => {
-    if (quantity <= 0) {
-      dispatch(removeFromCart(itemId));
-    } else {
-      dispatch(updateCartQuantity({ itemId, quantity }));
-    }
+    if (quantity <= 0) dispatch(removeFromCart(itemId));
+    else dispatch(updateCartQuantity({ itemId, quantity }));
   };
 
-  // Calculate cart totals
-  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const cartItemsCount = cart.reduce((count, item) => count + item.quantity, 0);
+  const cartTotal = (cart || []).reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartItemsCount = (cart || []).reduce((count, item) => count + item.quantity, 0);
 
-  // Scroll button logic
   const updateButtons = (ref, setLeft, setRight) => {
     const el = ref.current;
     if (!el) return;
@@ -115,19 +100,15 @@ const UserDashboard = () => {
 
   const scrollHandler = (ref, direction) => {
     if (!ref.current) return;
-    ref.current.scrollBy({
-      left: direction === "left" ? -200 : 200,
-      behavior: "smooth",
-    });
+    ref.current.scrollBy({ left: direction === "left" ? -200 : 200, behavior: "smooth" });
   };
 
   useEffect(() => {
     const c = cateScroll.current;
     const s = shopScroll.current;
-    const onCateScroll = () =>
-      updateButtons(cateScroll, setShowLeftButton, setShowRightButton);
-    const onShopScroll = () =>
-      updateButtons(shopScroll, setShowLeftShopButton, setShowRightShopButton);
+
+    const onCateScroll = () => updateButtons(cateScroll, setShowLeftButton, setShowRightButton);
+    const onShopScroll = () => updateButtons(shopScroll, setShowLeftShopButton, setShowRightShopButton);
 
     updateButtons(cateScroll, setShowLeftButton, setShowRightButton);
     updateButtons(shopScroll, setShowLeftShopButton, setShowRightShopButton);
@@ -141,38 +122,29 @@ const UserDashboard = () => {
     };
   }, [categories, shopsInMyCity]);
 
-  // Razorpay Integration
-  const initializeRazorpay = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
+  // Razorpay checkout (unchanged)
+  const initializeRazorpay = () => new Promise(resolve => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
-
+    if ((cart || []).length === 0) return;
     setIsProcessingPayment(true);
 
     try {
-      // Initialize Razorpay
       const razorpayLoaded = await initializeRazorpay();
       if (!razorpayLoaded) {
-        alert("Razorpay SDK failed to load. Check your connection.");
+        alert("Razorpay SDK failed to load.");
         setIsProcessingPayment(false);
         return;
       }
 
-      // Create order on backend
       const orderData = {
-        items: cart.map(item => ({
-          itemId: item._id,
-          quantity: item.quantity,
-          price: item.price
-        })),
+        items: (cart || []).map(item => ({ itemId: item._id, quantity: item.quantity, price: item.price })),
         totalAmount: cartTotal,
         currency: "INR"
       };
@@ -182,9 +154,8 @@ const UserDashboard = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
       });
 
-      // Razorpay options
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Fixed: using import.meta.env instead of process.env
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: data.amount,
         currency: data.currency,
         name: "Country Kitchen",
@@ -192,42 +163,32 @@ const UserDashboard = () => {
         order_id: data.id,
         handler: async (response) => {
           try {
-            // Verify payment on backend
-            const verifyData = {
+            await axios.post(`${serverUrl}/api/order/verify-payment`, {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            };
-
-            await axios.post(`${serverUrl}/api/order/verify-payment`, verifyData, {
+              razorpay_signature: response.razorpay_signature
+            }, {
               withCredentials: true,
               headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
             });
 
-            // Clear cart and show success
             dispatch(clearCart());
             setShowCart(false);
-            alert("Payment successful! Your order has been placed.");
+            alert("Payment successful!");
           } catch (error) {
             console.error("Payment verification failed:", error);
-            alert("Payment verification failed. Please contact support.");
+            alert("Payment verification failed.");
           }
         },
-        prefill: {
-          name: "",
-          email: "",
-          contact: ""
-        },
-        theme: {
-          color: "#ff4d2d"
-        }
+        prefill: { name: "", email: "", contact: "" },
+        theme: { color: "#ff4d2d" }
       };
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error) {
       console.error("Checkout error:", error);
-      alert("Failed to initiate payment. Please try again.");
+      alert("Failed to initiate payment.");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -243,213 +204,99 @@ const UserDashboard = () => {
 
       {/* Categories Section */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
-        <h1 className="text-gray-800 text-2xl sm:text-3xl">
-          Inspiration for your first Order
-        </h1>
-
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">Inspiration for your first Order</h1>
         <div className="w-full relative">
-          {showLeftButton && (
-            <button
-              onClick={() => scrollHandler(cateScroll, "left")}
-              className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
-            >
-              <FaArrowCircleLeft />
-            </button>
-          )}
-
-          <div
-            className="w-full flex overflow-x-auto gap-4 pb-2"
-            ref={cateScroll}
-          >
-            {categories.map((cate, index) => (
-              <div 
-                key={index}
-                onClick={() => handleCategoryClick(cate)}
-                className={`cursor-pointer ${selectedCategory === cate ? 'ring-2 ring-red-500' : ''}`}
-              >
-                <CategoryCard
-                  name={cate}
-                  image={categoryImages[cate.toLowerCase()] || menu_1}
-                />
+          {showLeftButton && <button onClick={() => scrollHandler(cateScroll, "left")} className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleLeft /></button>}
+          <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={cateScroll}>
+            {(categories || []).map((cate, index) => (
+              <div key={index} onClick={() => handleCategoryClick(cate)} className={`cursor-pointer ${selectedCategory === cate ? 'ring-2 ring-red-500' : ''}`}>
+                <CategoryCard name={cate} image={categoryImages[cate.toLowerCase()] || menu_1} />
               </div>
             ))}
           </div>
-
-          {showRightButton && (
-            <button
-              onClick={() => scrollHandler(cateScroll, "right")}
-              className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
-            >
-              <FaArrowCircleRight />
-            </button>
-          )}
+          {showRightButton && <button onClick={() => scrollHandler(cateScroll, "right")} className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleRight /></button>}
         </div>
       </div>
 
       {/* Shops Section */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
-        <h1 className="text-gray-800 text-2xl sm:text-3xl">
-          Best Shop in {currentCity || "your city"}
-        </h1>
-
+        <h1 className="text-gray-800 text-2xl sm:text-3xl">Best Shop in {currentCity || "your city"}</h1>
         <div className="w-full relative">
-          {showLeftShopButton && (
-            <button
-              onClick={() => scrollHandler(shopScroll, "left")}
-              className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
-            >
-              <FaArrowCircleLeft />
-            </button>
-          )}
-
-          <div
-            className="w-full flex overflow-x-auto gap-4 pb-2"
-            ref={shopScroll}
-          >
+          {showLeftShopButton && <button onClick={() => scrollHandler(shopScroll, "left")} className="absolute left-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleLeft /></button>}
+          <div className="w-full flex overflow-x-auto gap-4 pb-2" ref={shopScroll}>
             {(shopsInMyCity || []).map((shop, index) => (
-              <CategoryCard
-                name={shop.name}
-                image={shop.image || "/assets/shop-default.jpg"}
-                key={shop._id || index}
-              />
+              <CategoryCard key={shop._id || index} name={shop.name} image={shop.image || "/assets/shop-default.jpg"} />
             ))}
           </div>
-
-          {showRightShopButton && (
-            <button
-              onClick={() => scrollHandler(shopScroll, "right")}
-              className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"
-            >
-              <FaArrowCircleRight />
-            </button>
-          )}
+          {showRightShopButton && <button onClick={() => scrollHandler(shopScroll, "right")} className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition z-10"><FaArrowCircleRight /></button>}
         </div>
       </div>
 
       {/* Food Items Section */}
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
         <div className="flex justify-between items-center w-full">
-          <h1 className="text-gray-800 text-2xl sm:text-3xl">
-            {selectedCategory ? `${selectedCategory} Items` : "Suggested Food Items"}
-          </h1>
-          {selectedCategory && (
-            <button
-              onClick={() => setSelectedCategory("")}
-              className="text-red-500 hover:text-red-700 font-medium"
-            >
-              Clear Filter
-            </button>
-          )}
+          <h1 className="text-gray-800 text-2xl sm:text-3xl">{selectedCategory ? `${selectedCategory} Items` : "Suggested Food Items"}</h1>
+          {selectedCategory && <button onClick={() => setSelectedCategory("")} className="text-red-500 hover:text-red-700 font-medium">Clear Filter</button>}
         </div>
         <div className="w-full h-auto flex flex-wrap gap-[20px] justify-center">
-          {filteredItems.length === 0 ? (
+          {(filteredItems || []).length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               {selectedCategory ? `No ${selectedCategory} items found` : "No items available"}
             </div>
           ) : (
-            filteredItems.map((item, index) => (
-              <FoodCard 
-                key={item._id || index} 
-                data={item} 
-                onAddToCart={handleAddToCart}
-                cartItem={cart.find(cartItem => cartItem._id === item._id)}
-              />
+            (filteredItems || []).map((item, index) => (
+              <FoodCard key={item._id || index} data={item} onAddToCart={handleAddToCart} cartItem={(cart || []).find(cartItem => cartItem._id === item._id)} />
             ))
           )}
         </div>
       </div>
 
       {/* Track Delivery Section */}
-      {driverId && (
-        <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
-          <h1 className="text-gray-800 text-2xl sm:text-3xl">Track Your Delivery</h1>
-          <TrackDelivery driverId={driverId} />
-        </div>
-      )}
+      {driverId && <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]"><h1 className="text-gray-800 text-2xl sm:text-3xl">Track Your Delivery</h1><TrackDelivery driverId={driverId} /></div>}
 
       {/* Cart Sidebar */}
-      {showCart && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
-          <div className="bg-white w-full max-w-md h-full overflow-y-auto">
-            <div className="p-4 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Your Cart ({cartItemsCount})</h2>
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <FaTimes size={20} />
-                </button>
+      {showCart && <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
+        <div className="bg-white w-full max-w-md h-full overflow-y-auto">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h2 className="text-xl font-bold">Your Cart ({cartItemsCount})</h2>
+            <button onClick={() => setShowCart(false)} className="text-gray-500 hover:text-gray-700"><FaTimes size={20} /></button>
+          </div>
+          <div className="p-4">
+            {(cart || []).length === 0 ? (
+              <div className="text-center py-8">
+                <FaShoppingCart className="mx-auto text-gray-400 text-4xl mb-4" />
+                <p className="text-gray-500">Your cart is empty</p>
               </div>
-            </div>
-
-            <div className="p-4">
-              {cart.length === 0 ? (
-                <div className="text-center py-8">
-                  <FaShoppingCart className="mx-auto text-gray-400 text-4xl mb-4" />
-                  <p className="text-gray-500">Your cart is empty</p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {cart.map((item) => (
-                      <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-16 h-16 object-cover rounded-lg"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{item.name}</h3>
-                          <p className="text-red-500 font-bold">₹{item.price}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
-                            className="bg-gray-200 p-1 rounded"
-                          >
-                            <FaMinus size={12} />
-                          </button>
-                          <span className="px-2">{item.quantity}</span>
-                          <button
-                            onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
-                            className="bg-gray-200 p-1 rounded"
-                          >
-                            <FaPlus size={12} />
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveFromCart(item._id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <FaTimes />
-                        </button>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {(cart || []).map(item => (
+                    <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{item.name}</h3>
+                        <p className="text-red-500 font-bold">₹{item.price}</p>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between text-xl font-bold">
-                      <span>Total: ₹{cartTotal}</span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} className="bg-gray-200 p-1 rounded"><FaMinus size={12} /></button>
+                        <span className="px-2">{item.quantity}</span>
+                        <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} className="bg-gray-200 p-1 rounded"><FaPlus size={12} /></button>
+                      </div>
+                      <button onClick={() => handleRemoveFromCart(item._id)} className="text-red-500 hover:text-red-700"><FaTimes /></button>
                     </div>
-                    <button
-                      onClick={handleCheckout}
-                      disabled={isProcessingPayment}
-                      className={`w-full mt-4 py-3 rounded-lg font-semibold ${
-                        isProcessingPayment
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-red-500 hover:bg-red-600"
-                      } text-white`}
-                    >
-                      {isProcessingPayment ? "Processing..." : "Proceed to Payment"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                  ))}
+                </div>
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg flex flex-col gap-2">
+                  <div className="flex justify-between text-xl font-bold"><span>Total: ₹{cartTotal}</span></div>
+                  <button onClick={handleCheckout} disabled={isProcessingPayment} className={`w-full mt-4 py-3 rounded-lg font-semibold ${isProcessingPayment ? "bg-gray-400 cursor-not-allowed" : "bg-red-500 hover:bg-red-600"} text-white`}>
+                    {isProcessingPayment ? "Processing..." : "Proceed to Payment"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>}
     </div>
   );
 };

@@ -54,6 +54,9 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
+
+  deliveryOtp: { type: String },           // one-time code sent to customer
+  otpExpiry: { type: Date },
   estimatedDeliveryTime: {
     type: Date
   },

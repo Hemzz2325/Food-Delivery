@@ -38,7 +38,12 @@ const Signup = () => {
       if (token) localStorage.setItem("authToken", token);
       if (user) dispatch(setUserData(user));
 
-      navigate("/");
+      // inside Signin.jsx after dispatch(setUserData(user))
+      const role = String(user?.role || "").toLowerCase();
+      if (role === "owner") navigate("/owner/orders");
+      else if (role === "delivery boy") navigate("/delivery");
+      else navigate("/");
+
     } catch (err) {
       console.error("Signup Error:", err?.response?.data || err);
       setError(err?.response?.data?.message || "Signup failed. Try again.");
@@ -155,9 +160,8 @@ const Signup = () => {
                 key={r}
                 type="button"
                 onClick={() => setRole(r)}
-                className={`flex-1 border rounded-lg px-3 py-2 text-center font-medium transition-colors ${
-                  role === r ? "bg-red-500 text-white" : "bg-white text-gray-700"
-                }`}
+                className={`flex-1 border rounded-lg px-3 py-2 text-center font-medium transition-colors ${role === r ? "bg-red-500 text-white" : "bg-white text-gray-700"
+                  }`}
                 disabled={loading}
               >
                 {r}
@@ -173,9 +177,8 @@ const Signup = () => {
         <button
           onClick={handleSignup}
           disabled={loading}
-          className={`mt-6 w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition-colors ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`mt-6 w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition-colors ${loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
         >
           {loading ? <ClipLoader size={20} color="#fff" /> : "Sign Up"}
         </button>
@@ -184,9 +187,8 @@ const Signup = () => {
         <button
           onClick={handleGoogleAuth}
           disabled={loading}
-          className={`mt-4 w-full border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`mt-4 w-full border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
         >
           <FcGoogle size={20} />
           <span>{loading ? "Processing..." : "Sign up with Google"}</span>

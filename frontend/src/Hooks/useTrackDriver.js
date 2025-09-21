@@ -1,24 +1,64 @@
-import { useEffect, useState } from "react";
+// frontend/src/hooks/useTrackDriver.js
+
+import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { serverUrl } from "../config";
 
-// ✅ CORRECT - Use serverUrl instead of hardcoded port
-const socket = io(serverUrl);
-
-export default function useTrackDriver(driverId) {
-  const [location, setLocation] = useState({ lat: null, lon: null });
+/**
+ * useTrackDriver(orderId, canSend = false)
+ * - If canSend=false: joins an order room and listens for 'order:location' updates from the driver.
+ * - If canSend=true: also starts a high-accuracy geolocation watch and emits 'driver_location' for that order.
+ *
+ * This hook does NOT persist or touch Redux; it is completely local and safe for reuse in TrackOrder and Delivery pages.
+ */
+export default function useTrackDriver(orderId, canSend = false) {
+  const [driverPos, setDriverPos] = useState(null);
+  const socketRef = useRef(null);
+  const watchRef = useRef(null);
 
   useEffect(() => {
-    socket.on("driver-location-update", (data) => {
-      if (data.driverId === driverId) {
-        setLocation({ lat: data.lat, lon: data.lon });
-      }
+    if (!orderId) return;
+
+    // Create a socket connection to the same origin used by REST (with credentials enabled)
+    const socket = io(serverUrl, {
+      withCredentials: true,
+      transports: ["websocket"],
+    });
+    socketRef.current = socket;
+
+    // Join the order-specific room
+    socket.emit("join_order", { orderId });
+
+    // Receive live driver locations
+    socket.on("order:location", (loc) => {
+      setDriverPos(loc); // { lat, lng, ts }
     });
 
-    return () => {
-      socket.off("driver-location-update");
-    };
-  }, [driverId]);
+    // Optionally publish device location for the room (delivery role)
+    if (canSend && "geolocation" in navigator) {
+      watchRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords || {};
+          if (typeof latitude === "number" && typeof longitude === "number") {
+            socket.emit("driver_location", {
+              orderId,
+              lat: latitude,
+              lng: longitude,
+            });
+          }
+        },
+        // Ignore errors silently; UI can choose to show its own prompt
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      );
+    }
 
-  return location;
+    return () => {
+      if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current);
+      socket.off("order:location");
+      socket.disconnect();
+    };
+  }, [orderId, canSend]);
+
+  return { driverPos };
 }

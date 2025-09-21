@@ -8,66 +8,69 @@ import useGetCurrUser from "./Hooks/useGetCurrUser";
 import { useSelector } from "react-redux";
 import useGetCity from "./Hooks/useGetCity";
 import useGetMyShop from "./Hooks/useGetMyShop";
-import useGetShopByCity from "./Hooks/useGetShopByCity"; // ✅ Add this import
+import useGetShopByCity from "./Hooks/useGetShopByCity";
 import Createeditshop from "./pages/Createeditshop";
 import AddItem from "./pages/AddItems";
 import EditItem from "./pages/EditItem";
 import useGetItemsInMyCity from "./Hooks/useGetItemByCity";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import MyOrders from "./pages/MyOrders";
+import TrackOrder from "./pages/TrackOrder";
+import OwnerOrders from "./pages/OwnerOrders";
+import Delivery from "./pages/Delivery";           // keep only this one
+import RoleGuard from "./components/RoleGuard";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
-  // 🔹 Run hooks on app load
   useGetCurrUser();
   useGetCity();
   useGetMyShop();
-  useGetShopByCity(); // ✅ Add this single line
+  useGetShopByCity();
   useGetItemsInMyCity();
 
   const { userData } = useSelector((state) => state.user);
 
   return (
-    <Routes>
-      {/* Auth routes — only accessible if NOT logged in */}
-      <Route
-        path="/signup"
-        element={!userData ? <Signup /> : <Navigate to="/" />}
-      />
-      <Route
-        path="/signin"
-        element={!userData ? <Signin /> : <Navigate to="/" />}
-      />
-      <Route
-        path="/forgot-password"
-        element={!userData ? <Forgotpassword /> : <Navigate to="/" />}
-      />
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/signup" element={!userData ? <Signup /> : <Navigate to="/" />} />
+        <Route path="/signin" element={!userData ? <Signin /> : <Navigate to="/" />} />
+        <Route path="/forgot-password" element={!userData ? <Forgotpassword /> : <Navigate to="/" />} />
 
-      {/* Home route — only accessible if logged in */}
-      <Route
-        path="/"
-        element={userData ? <Home /> : <Navigate to="/signin" />}
-      />
+        <Route path="/" element={userData ? <Home /> : <Navigate to="/signin" />} />
 
-      {/* Shop management */}
-      <Route
-        path="/create-edit-shop"
-        element={userData ? <Createeditshop /> : <Navigate to="/signin" />}
-      />
-      <Route
-        path="/add-item"
-        element={userData ? <AddItem /> : <Navigate to="/signin" />}
-      />
+        <Route path="/create-edit-shop" element={userData ? <Createeditshop /> : <Navigate to="/signin" />} />
+        <Route path="/add-item" element={userData ? <AddItem /> : <Navigate to="/signin" />} />
+        <Route path="/edit-item/:itemId" element={userData ? <EditItem /> : <Navigate to="/signin" />} />
 
-      {/* ✅ Dynamic edit item route */}
-      <Route
-        path="/edit-item/:itemId"
-        element={userData ? <EditItem /> : <Navigate to="/signin" />}
-      />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
 
-      {/* Catch-all fallback */}
-      <Route
-        path="*"
-        element={userData ? <Home /> : <Navigate to="/signin" />}
-      />
-    </Routes>
+        <Route path="/orders" element={<MyOrders />} />
+        <Route path="/track/:orderId" element={<TrackOrder />} />
+
+        <Route
+          path="/owner/orders"
+          element={
+            <RoleGuard allow={["owner"]}>
+              <OwnerOrders />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/delivery"
+          element={
+            <RoleGuard allow={["delivery boy"]}>
+              <Delivery />
+            </RoleGuard>
+          }
+        />
+
+        <Route path="*" element={userData ? <Home /> : <Navigate to="/signin" />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }
 

@@ -33,6 +33,11 @@ const itemSchema = new mongoose.Schema({
     average: { type: Number, default: 0 },
     count: { type: Number, default: 0 },
   },
+  ratingsByUser: {
+  type: Map, // key: userId, value: Number (1-5)
+  of: Number,
+  default: undefined,
+},
 }, { timestamps: true });
 
 const Item = mongoose.model("item", itemSchema);

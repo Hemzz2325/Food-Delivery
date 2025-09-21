@@ -2,6 +2,7 @@
 import express from "express";
 import isAuth from "../middlewares/isAuth.js";
 import upload from "../middlewares/multer.js";
+import { rateItem } from "../controllers/itemRatingController.js";
 import { 
   addItem, 
   editItem, 
@@ -26,5 +27,9 @@ router.delete("/delete/:itemId", isAuth, deleteItem);
 
 // ✅ Correct: Get items by city (calls real controller now)
 router.get("/city/:city", getItemByCity);
+
+
+// Stage 6: rate item
+router.post("/rate/:itemId", isAuth, rateItem);
 
 export default router;

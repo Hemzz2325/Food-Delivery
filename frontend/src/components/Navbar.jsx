@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx - FIXED
+// src/components/Navbar.jsx
 import React, { useState } from "react";
 import { FaMapMarkerAlt, FaPlus, FaReceipt, FaShoppingCart } from "react-icons/fa";
 import { FiSearch } from "react-icons/fi";
@@ -6,10 +6,10 @@ import { RxCross2 } from "react-icons/rx";
 import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config";
-import { setUserData, clearUserData } from "../redux/userSlice";
-import { useNavigate } from "react-router-dom";
+import { clearUserData } from "../redux/userSlice";
+import { Link, useNavigate } from "react-router-dom"; // add Link
 
-const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
+const Navbar = ({ cartItemsCount = 0, onCartClick = () => { } }) => { // safe default
   const { userData, city } = useSelector((state) => state.user);
   const { myShopData } = useSelector((state) => state.owner);
   const navigate = useNavigate();
@@ -17,7 +17,6 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
   const [showSearch, setShowSearch] = useState(false);
   const dispatch = useDispatch();
 
-  // Fix display location with fallback
   const displayLocation = city && city !== "Detecting..." ? city : "Detecting location...";
 
   const handleLogout = async () => {
@@ -35,7 +34,10 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
     <div className="w-full fixed top-0 z-[50] bg-[#fff9f6] shadow-md">
       <div className="h-[70px] flex items-center justify-between px-4 md:px-8">
         {/* Logo */}
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-red-500 select-none cursor-pointer hover:scale-105 transition-transform duration-300">
+        <h1
+          className="text-xl md:text-2xl lg:text-3xl font-bold text-red-500 select-none cursor-pointer hover:scale-105 transition-transform duration-300"
+          onClick={() => navigate("/")}
+        >
           Country-Kitchen
         </h1>
 
@@ -92,13 +94,19 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
                 <span className="text-sm">Add Food Item</span>
               </button>
 
-              <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-white bg-[#ff4d2d] relative shadow-md hover:shadow-xl transition-shadow duration-300">
+              <button
+                type="button"
+                onClick={() => navigate("/owner/orders")}
+                className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-white bg-[#ff4d2d] relative shadow-md hover:shadow-xl transition"
+              >
                 <FaReceipt />
                 <span>Pending Orders</span>
                 <span className="absolute -right-2 -top-2 text-xs font-semibold text-white bg-red-600 rounded-full px-[6px] py-[1px]">
                   0
                 </span>
-              </div>
+              </button>
+
+
 
               <button
                 onClick={() => navigate("/add-item")}
@@ -112,23 +120,32 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
           {/* User Actions */}
           {userData?.role === "user" && (
             <>
-              <div
-                className="relative cursor-pointer group"
-                onClick={onCartClick}
-              >
-                <FaShoppingCart
-                  size={22}
-                  className="text-red-500 hover:scale-110 transition-transform duration-300"
-                />
+              <div className="relative cursor-pointer group" onClick={onCartClick}>
+                <FaShoppingCart size={22} className="text-red-500 hover:scale-110 transition-transform duration-300" />
                 {cartItemsCount > 0 && (
                   <span className="absolute -right-2 -top-2 text-xs font-semibold text-white bg-red-600 rounded-full px-[6px] py-[1px] group-hover:scale-110 transition-transform duration-300">
                     {cartItemsCount}
                   </span>
                 )}
               </div>
-              <button className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
+
+              {/* Use Link (recommended) */}
+              <Link
+                to="/orders"
+                className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                My Orders
+              </Link>
+
+              {/* Or, use a button:
+              <button
+                type="button"
+                onClick={() => navigate("/orders")}
+                className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
+              >
                 My Orders
               </button>
+              */}
             </>
           )}
 
@@ -144,21 +161,24 @@ const Navbar = ({ cartItemsCount = 0, onCartClick }) => {
             {showinfo && (
               <div className="absolute right-0 mt-2 w-[180px] bg-white shadow-2xl rounded-lg p-4 border border-gray-300 z-[9999] flex flex-col gap-4 transition-all duration-300">
                 {userData?.fullName && (
-                  <h2 className="text-lg font-semibold text-gray-700">
-                    Hello, {userData.fullName}
-                  </h2>
+                  <h2 className="text-lg font-semibold text-gray-700">Hello, {userData.fullName}</h2>
                 )}
                 {userData?.role === "user" && (
-                  <div className="text-red-600 font-semibold cursor-pointer hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/orders")}
+                    className="text-red-600 font-semibold hover:underline text-left"
+                  >
                     My Orders
-                  </div>
+                  </button>
                 )}
-                <div
-                  className="text-red-600 font-semibold cursor-pointer hover:underline"
+                <button
+                  type="button"
+                  className="text-red-600 font-semibold hover:underline text-left"
                   onClick={handleLogout}
                 >
                   Logout
-                </div>
+                </button>
               </div>
             )}
           </div>

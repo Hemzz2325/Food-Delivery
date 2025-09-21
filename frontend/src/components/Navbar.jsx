@@ -1,5 +1,5 @@
 // src/components/Navbar.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaMapMarkerAlt, FaPlus, FaReceipt, FaShoppingCart } from "react-icons/fa";
 import { FiSearch } from "react-icons/fi";
 import { RxCross2 } from "react-icons/rx";
@@ -7,17 +7,40 @@ import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config";
 import { clearUserData } from "../redux/userSlice";
-import { Link, useNavigate } from "react-router-dom"; // add Link
+import { Link, useNavigate } from "react-router-dom";
+import api from "../lib/api"; // shared axios instance
 
-const Navbar = ({ cartItemsCount = 0, onCartClick = () => { } }) => { // safe default
+const Navbar = ({ cartItemsCount = 0, onCartClick = () => {} }) => {
   const { userData, city } = useSelector((state) => state.user);
   const { myShopData } = useSelector((state) => state.owner);
   const navigate = useNavigate();
-  const [showinfo, setShowinfo] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
   const dispatch = useDispatch();
 
+  const [showinfo, setShowinfo] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
   const displayLocation = city && city !== "Detecting..." ? city : "Detecting location...";
+
+  // Fetch owner pending orders count
+  useEffect(() => {
+    let timer;
+    const load = async () => {
+      try {
+        if (String(userData?.role || "").toLowerCase() !== "owner") {
+          setPendingCount(0);
+          return;
+        }
+        const { data } = await api.get("/api/order/owner/pending-count");
+        setPendingCount(Number(data?.count || 0));
+      } catch {
+        // ignore failures; keep previous value
+      }
+    };
+    load();
+    timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
+  }, [userData]);
 
   const handleLogout = async () => {
     try {
@@ -25,8 +48,8 @@ const Navbar = ({ cartItemsCount = 0, onCartClick = () => { } }) => { // safe de
       dispatch(clearUserData());
       await axios.post(`${serverUrl}/api/auth/signout`, {}, { withCredentials: true });
       window.location.href = "/signin";
-    } catch (err) {
-      console.error("Logout Error:", err);
+    } catch {
+      // ignore
     }
   };
 
@@ -102,11 +125,9 @@ const Navbar = ({ cartItemsCount = 0, onCartClick = () => { } }) => { // safe de
                 <FaReceipt />
                 <span>Pending Orders</span>
                 <span className="absolute -right-2 -top-2 text-xs font-semibold text-white bg-red-600 rounded-full px-[6px] py-[1px]">
-                  0
+                  {pendingCount}
                 </span>
               </button>
-
-
 
               <button
                 onClick={() => navigate("/add-item")}
@@ -129,23 +150,12 @@ const Navbar = ({ cartItemsCount = 0, onCartClick = () => { } }) => { // safe de
                 )}
               </div>
 
-              {/* Use Link (recommended) */}
               <Link
                 to="/orders"
                 className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
               >
                 My Orders
               </Link>
-
-              {/* Or, use a button:
-              <button
-                type="button"
-                onClick={() => navigate("/orders")}
-                className="hidden sm:block bg-red-200 hover:bg-red-300 text-red-600 font-medium text-sm py-1.5 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
-              >
-                My Orders
-              </button>
-              */}
             </>
           )}
 

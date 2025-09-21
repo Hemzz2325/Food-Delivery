@@ -450,3 +450,38 @@ export const verifyDeliveryOtp = async (req, res) => {
 };
 
 
+
+// GET /api/order/owner/pending-count
+export const getOwnerPendingCount = async (req, res) => {
+  try {
+    const ownerId = new mongoose.Types.ObjectId(req.userId);
+
+    // find all shops owned by this owner
+    const shops = await Shop.find({ owner: ownerId }, { _id: 1 });
+    const shopIds = shops.map(s => s._id);
+
+    if (!shopIds.length) return res.json({ count: 0 });
+
+    // find all items that belong to these shops
+    const items = await Item.find({ shop: { $in: shopIds } }, { _id: 1 });
+    const itemIds = items.map(i => i._id);
+
+    if (!itemIds.length) return res.json({ count: 0 });
+
+    // count unique orders that include any of these items and are not completed/cancelled
+    const pipeline = [
+      { $match: { status: { $nin: ["delivered", "cancelled"] } } },
+      { $unwind: "$items" },
+      { $match: { "items.item": { $in: itemIds } } },
+      { $group: { _id: "$_id" } },
+      { $count: "count" }
+    ];
+
+    const result = await Order.aggregate(pipeline);
+    const count = result?.[0]?.count || 0;
+
+    res.json({ count });
+  } catch (e) {
+    res.status(500).json({ message: "Failed to get pending count", error: e.message });
+  }
+};

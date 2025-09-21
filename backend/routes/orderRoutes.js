@@ -15,7 +15,8 @@ import {
     deliveryAccept,
     listDeliveryOrders,
     sendDeliveryOtp,
-    verifyDeliveryOtp
+    verifyDeliveryOtp,
+    getOwnerPendingCount 
 } from "../controllers/orderController.js";
 
 const router = express.Router();
@@ -52,5 +53,9 @@ router.get("/delivery/my", isAuth, listDeliveryOrders);
 // Stage 5: delivery OTP endpoints
 router.post("/delivery/send-otp/:orderId", isAuth, sendDeliveryOtp);
 router.post("/delivery/verify-otp/:orderId", isAuth, verifyDeliveryOtp);
+
+
+// owner: pending count
+router.get("/owner/pending-count", isAuth, getOwnerPendingCount);
 
 export default router;

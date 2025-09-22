@@ -9,16 +9,20 @@ import { store } from './redux/store.js'
 
 import "leaflet/dist/leaflet.css";
 
+
+
+
+
 import { ToastProvider } from './components/ToastProvider.jsx'
 
 createRoot(document.getElementById('root')).render(
   <Provider store={store}>
     <BrowserRouter>
-      <StrictMode>
+     
         <ToastProvider>
           <App />
         </ToastProvider>
-      </StrictMode>
+   
     </BrowserRouter>
   </Provider>
 )

@@ -22,31 +22,52 @@ const Navbar = ({ cartItemsCount = 0, onCartClick = () => {} }) => {
 
   const displayLocation = city && city !== "Detecting..." ? city : "Detecting location...";
 
+  // Prefer a single, reliable base URL
+  const BASE_URL = import.meta.env.VITE_SERVER_URL || serverUrl || "http://localhost:8000";
+
   // Fetch owner pending orders count
-  useEffect(() => {
-    let timer;
-    const load = async () => {
-      try {
-        if (String(userData?.role || "").toLowerCase() !== "owner") {
-          setPendingCount(0);
-          return;
-        }
-        const { data } = await api.get("/api/order/owner/pending-count");
-        setPendingCount(Number(data?.count || 0));
-      } catch {
-        // ignore failures; keep previous value
+  const fetchPending = async () => {
+    try {
+      // Use shared axios with credentials if configured
+      const token = localStorage.getItem("authToken");
+      const res = await api.get("/api/order/owner/pending-count", {
+        baseURL: BASE_URL,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+        validateStatus: () => true, // handle non-2xx manually
+      });
+
+      if (res.status === 200 && typeof res.data?.count !== "undefined") {
+        setPendingCount(Number(res.data.count) || 0);
+        return;
       }
-    };
-    load();
-    timer = setInterval(load, 15000);
-    return () => clearInterval(timer);
-  }, [userData]);
+
+      // If backend returns 401 or 500, don’t spam console and show 0
+      console.warn("Pending-count failed:", res.status, res.data);
+      setPendingCount(0);
+    } catch (e) {
+      console.error("Pending-count error:", e);
+      setPendingCount(0);
+    }
+  };
+
+  // Run once on mount, and when role changes to owner
+  useEffect(() => {
+    if (userData?.role === "owner" && myShopData) {
+      fetchPending();
+      const t = setInterval(fetchPending, 60_000); // refresh every minute
+      return () => clearInterval(t);
+    } else {
+      setPendingCount(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData?.role, myShopData]);
 
   const handleLogout = async () => {
     try {
       localStorage.removeItem("authToken");
       dispatch(clearUserData());
-      await axios.post(`${serverUrl}/api/auth/signout`, {}, { withCredentials: true });
+      await axios.post(`${BASE_URL}/api/auth/signout`, {}, { withCredentials: true });
       window.location.href = "/signin";
     } catch {
       // ignore

@@ -8,7 +8,7 @@ import useCurrentOrder from "../Hooks/useCurrentOrder.js";
 import TrackDelivery from "./TrackDelivery";
 import { categoryImages } from "../assets/assets";
 
-const UserDashboard = () => {
+const OwnerDashboard = () => {
   // Fetch current order for driverId
   useCurrentOrder();
 
@@ -170,4 +170,4 @@ const UserDashboard = () => {
   );
 };
 
-export default UserDashboard;
+export default OwnerDashboard;

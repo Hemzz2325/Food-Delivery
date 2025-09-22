@@ -39,7 +39,6 @@ const SignIn = () => {
     else navigate("/");
   };
 
-  // Email/password
   const handleSignIn = async (e) => {
     e?.preventDefault?.();
     setError("");
@@ -63,28 +62,17 @@ const SignIn = () => {
       if (user) dispatch(setUserData(user));
 
       routeByRole(user);
-      // inside Signin.jsx after dispatch(setUserData(user))
-      const role = String(user?.role || "").toLowerCase();
-      if (role === "owner") navigate("/owner/orders");
-      else if (role === "delivery boy") navigate("/delivery");
-      else navigate("/");
-
     } catch (err) {
       let msg = "Signin failed. Please try again.";
-      if (err.code === "ECONNREFUSED")
-        msg = "Cannot connect to server. Start backend on port 8000.";
+      if (err.code === "ECONNREFUSED") msg = "Cannot connect to server.";
       else if (err.code === "ENOTFOUND") msg = "Server not found.";
-      else if (err.response?.status === 404) msg = "Signin route not found.";
-      else if (err.response?.status === 500) msg = "Server error. Try later.";
       else if (err.response?.data?.message) msg = err.response.data.message;
-      else if (err.response?.data?.error) msg = err.response.data.error;
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // Google
   const handleGoogleAuth = async () => {
     setError("");
     setLoading(true);
@@ -111,9 +99,7 @@ const SignIn = () => {
       routeByRole(user);
     } catch (err) {
       let msg = "Google Auth failed. Try again.";
-      if (err.code === "ECONNREFUSED")
-        msg = "Cannot connect to server. Start backend on port 8000.";
-      else if (err.response?.data?.message) msg = err.response.data.message;
+      if (err.response?.data?.message) msg = err.response.data.message;
       setError(msg);
     } finally {
       setLoading(false);
@@ -121,76 +107,149 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-rose-50">
-      <div className="max-w-md w-full p-6 rounded-lg shadow-lg bg-white border border-gray-300">
-        <h1 className="text-3xl font-bold mb-2 text-red-500">Country-Kitchen</h1>
-        <p className="text-gray-500">Sign in to continue enjoying tasty food</p>
+    <div className="relative min-h-screen w-full overflow-hidden">
+      {/* Fullscreen Background */}
+      <img
+        src="/signin_img.png"
+        alt="background"
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="eager"
+      />
+      {/* Optional overlay for contrast */}
+      <div className="absolute inset-0 " />
 
-        <div className="mt-2 text-xs text-gray-500">Backend: {serverUrl}</div>
+      {/* Right-side Form */}
+      <div className="relative min-h-screen w-full flex items-center justify-start px-10">
+        <div
+          className="
+            max-w-sm w-full px-6 py-6 
+            rounded-2xl 
+            bg-white/0 
+            backdrop-blur-sm
+            border border-white/30 
+            shadow-lg 
+            animate-[slideIn_0.6s_ease-out]
+          "
+        >
+          <h1 className="text-3xl font-extrabold mb-2 text-red-500 drop-shadow">
+            Country-Kitchen
+          </h1>
+          <p className="text-gray-200 mb-4">Sign in to continue enjoying tasty food</p>
 
-        <form onSubmit={handleSignIn}>
-          <div className="mt-4">
-            <label className="block text-gray-700 font-medium mb-1">E-mail</label>
-            <input
-              type="email"
-              className="w-full border rounded-lg px-3 py-3 focus:outline-none focus:border-red-600 border-neutral-300"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
+          {/* <div className="mt-2 text-xs text-gray-300">Backend: {serverUrl}</div> */}
 
-          <div className="mt-4">
-            <label className="block text-gray-700 font-medium mb-1">Password</label>
-            <input
-              type="password"
-              className="w-full border rounded-lg px-3 py-3 focus:outline-none focus:border-red-600 border-neutral-300"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div
-            className="text-right mb-4 text-red-500 cursor-pointer"
-            onClick={() => navigate("/forgot-password")}
-          >
-            Forgot Password
-          </div>
-
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mb-2 text-sm">
-              {error}
+          {/* Sign-in form */}
+          <form onSubmit={handleSignIn} className="space-y-4 mt-4">
+            <div>
+              <label className="block text-gray-200 font-medium mb-1 px-32 ">E-Mail</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                className="
+                  w-full 
+                  border border-gray-300 
+                  rounded-lg 
+                  px-4 py-3 
+                  bg-white/20 
+                  text-white 
+                  placeholder-gray-200 
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-red-500 
+                  backdrop-blur-md
+                "
+                placeholder="Enter your email"
+              />
             </div>
-          )}
+
+            <div>
+              <label className="block text-gray-200 font-medium mb-1 px-30">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                className="
+                  w-full 
+                  border border-gray-300 
+                  rounded-lg 
+                  px-4 py-3 
+                  bg-white/20 
+                  text-white 
+                  placeholder-gray-200 
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-red-500 
+                  backdrop-blur-md
+                "
+                placeholder="Enter your password"
+              />
+            </div>
+
+            <div
+              className="text-right text-red-300 cursor-pointer text-sm"
+              onClick={() => navigate("/forgot-password")}
+            >
+              Forgot Password?
+            </div>
+
+            {error && (
+              <div className="bg-red-100/50 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className={`
+                w-full 
+                py-3 
+                rounded-lg 
+                bg-red-500/80 
+                hover:bg-red-600/90 
+                text-white 
+                font-semibold 
+                transition-transform duration-200 
+                hover:scale-105 
+                shadow-lg 
+                ${loading ? "opacity-50 cursor-not-allowed" : ""}
+              `}
+            >
+              {loading ? <ClipLoader size={20} color="#fff" /> : "Sign In"}
+            </button>
+          </form>
 
           <button
-            type="submit"
+            onClick={handleGoogleAuth}
             disabled={loading}
-            className={`mt-6 w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition-colors ${loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+            className={`
+              mt-4 w-full py-3 rounded-lg 
+              border border-gray-300 
+              bg-white/10 
+              text-white 
+              font-semibold 
+              flex items-center justify-center gap-2 
+              transition-transform duration-200 
+              hover:scale-105 
+              shadow-sm
+              ${loading ? "opacity-50 cursor-not-allowed" : ""}
+            `}
           >
-            {loading ? <ClipLoader size={20} color="#fff" /> : "Sign In"}
+            <FcGoogle size={20} />
+            <span>{loading ? "Processing..." : "Sign in with Google"}</span>
           </button>
-        </form>
 
-        <button
-          onClick={handleGoogleAuth}
-          disabled={loading}
-          className={`mt-4 w-full border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${loading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-        >
-          <FcGoogle size={20} />
-          <span>{loading ? "Processing..." : "Sign in with Google"}</span>
-        </button>
-
-        <p className="text-center mt-2 cursor-pointer" onClick={() => navigate("/signup")}>
-          Don’t have an account? <span className="text-red-500">Sign up</span>
-        </p>
+          <p
+            className="text-center mt-4 text-gray-200 cursor-pointer"
+            onClick={() => navigate("/signup")}
+          >
+            Don’t have an account?{" "}
+            <span className="text-red-500 font-semibold">Sign up</span>
+          </p>
+        </div>
       </div>
     </div>
   );

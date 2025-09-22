@@ -21,6 +21,7 @@ import OwnerOrders from "./pages/OwnerOrders";
 import Delivery from "./pages/Delivery";           // keep only this one
 import RoleGuard from "./components/RoleGuard";
 import ErrorBoundary from "./components/ErrorBoundary";
+import OwnerDashboard from "./components/OwnerDashboard";
 
 function App() {
   useGetCurrUser();
@@ -54,7 +55,7 @@ function App() {
           path="/owner/orders"
           element={
             <RoleGuard allow={["owner"]}>
-              <OwnerOrders />
+              <OwnerOrders />  {/* was <OwnerOrders /> */}
             </RoleGuard>
           }
         />

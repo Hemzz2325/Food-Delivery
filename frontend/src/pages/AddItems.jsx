@@ -1,3 +1,4 @@
+// src/components/AddItem.jsx
 import React, { useEffect, useState } from "react";
 import { IoIosArrowBack } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
@@ -127,191 +128,135 @@ const AddItem = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-gradient-to-b from-orange-50 to-white relative">
+    <div className="relative min-h-screen w-full overflow-hidden">
+      {/* Background Image */}
+      <img
+        src="/additem_img1.png"
+        alt="background"
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="eager"
+      />
+      {/* Overlay for readability */}
+      <div className="absolute inset-0 object-cover" />
+
       {/* Back Button */}
       <button
         onClick={() => navigate("/")}
-        className="absolute top-6 left-6 flex items-center gap-1 text-red-600 font-medium hover:text-red-700 transition-colors"
+        className="absolute top-6 left-6 flex items-center gap-1 text-white font-medium hover:text-red-300 transition-colors z-10"
       >
-        <IoIosArrowBack size={22} />
+        <IoIosArrowBack size={20} />
         <span>Back</span>
       </button>
 
-      {/* Card */}
-      <div className="max-w-lg w-full bg-white shadow-xl rounded-2xl p-8 border border-orange-200 mt-12">
+      {/* Centered Card */}
+      < div className="relative z-10 w-[90%] max-w-md mx-auto mt-12 mb-12 
+  bg-white/25 backdrop-blur-md border border-white/50 
+  rounded-2xl p-6 shadow-lg transition-all duration-300 
+  hover:shadow-2xl hover:scale-[1.01]">
+
         {/* Icon */}
-        <div className="bg-orange-100 p-6 rounded-full w-24 h-24 flex items-center justify-center mx-auto -mt-16 shadow-md">
-          <FaUtensils className="text-red-500 w-12 h-12" />
+        <div className="flex justify-center -mt-10">
+          <div className="bg-gradient-to-tr from-orange-400 to-red-300 p-4 rounded-2xl shadow-md">
+            <FaUtensils className="text-white w-8 h-8" />
+          </div>
         </div>
 
-        <h2 className="text-3xl font-bold text-center text-gray-800 mt-6">
-          Add New Food Item
+        {/* Title */}
+        <h2 className="text-xl font-bold text-center text-gray-800 mt-4">
+          Add New Item
         </h2>
-        <p className="text-gray-500 text-center mt-2">
-          Fill in the details below to add your dish
+        <p className="text-gray-600 text-center text-sm mt-1">
+          Fill in the details below
         </p>
+      
 
-        {/* Success & Error */}
-        {success && (
-          <div className="flex items-center justify-center gap-2 bg-green-100 text-green-800 p-3 rounded-lg mt-4 animate-fade-in">
-            <FaCheckCircle />
-            <span>Item added successfully! Redirecting...</span>
-          </div>
+      {/* Success & Error */}
+      {success && (
+        <div className="flex items-center justify-center gap-2 bg-green-500/20 text-green-200 p-2 rounded-lg mt-3 animate-pulse text-sm">
+          <FaCheckCircle />
+          <span>Item added! Redirecting...</span>
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-500/20 text-red-200 p-2 rounded-lg mt-3 text-center text-sm animate-shake">
+          {error}
+        </div>
+      )}
+
+      {/* Form */}
+      <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Food Name"
+          className="w-full border border-white/30 rounded-lg px-4 py-3 shadow-sm bg-white/10 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 text-sm"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={loading}
+        />
+        <input
+          type="number"
+          placeholder="Price"
+          className="w-full border border-white/30 rounded-lg px-4 py-3 shadow-sm bg-white/10 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 text-sm"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          disabled={loading}
+        />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full border border-white/30 rounded-lg px-4 py-3 shadow-sm bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-red-400 text-sm"
+          disabled={loading}
+        >
+          <option value="" className="text-gray-700">
+            Select Category
+          </option>
+          {categories.map((c, i) => (
+            <option value={c} key={i} className="text-black">
+              {c}
+            </option>
+          ))}
+        </select>
+        <select
+          value={foodtype}
+          onChange={(e) => setFoodtype(e.target.value)}
+          className="w-full border border-white/30 rounded-lg px-4 py-3 shadow-sm bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-red-400 text-sm"
+          disabled={loading}
+        >
+          <option value="veg" className="text-black">
+            Veg
+          </option>
+          <option value="non-veg" className="text-black">
+            Non-Veg
+          </option>
+        </select>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageChange}
+          className="w-full border border-white/30 rounded-lg px-4 py-3 shadow-sm bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-red-400 text-sm"
+          disabled={loading}
+        />
+        {previewImage && (
+          <img
+            src={previewImage}
+            alt="Preview"
+            className="w-full h-40 object-cover rounded-lg border border-white/30 mt-2 shadow-lg"
+          />
         )}
-        {error && (
-          <div className="bg-red-100 text-red-800 p-3 rounded-lg mt-4 text-center animate-fade-in">
-            {error}
-          </div>
-        )}
 
-        {/* Form */}
-        <form className="space-y-5 mt-6" onSubmit={handleSubmit}>
-          {/* Name */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1">
-              Food Name
-            </label>
-            <input
-              type="text"
-              className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                formErrors.name ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="Enter food name"
-              onChange={(e) => {
-                setName(e.target.value);
-                if (formErrors.name)
-                  setFormErrors((prev) => ({ ...prev, name: null }));
-              }}
-              value={name}
-              disabled={loading}
-            />
-            {formErrors.name && (
-              <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
-            )}
-          </div>
-
-          {/* Price */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1">
-              Price
-            </label>
-            <input
-              type="number"
-              className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                formErrors.price ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="Enter price"
-              onChange={(e) => {
-                setPrice(e.target.value);
-                if (formErrors.price)
-                  setFormErrors((prev) => ({ ...prev, price: null }));
-              }}
-              value={price}
-              disabled={loading}
-            />
-            {formErrors.price && (
-              <p className="text-red-500 text-sm mt-1">{formErrors.price}</p>
-            )}
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1">
-              Select Category
-            </label>
-            <select
-              className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                formErrors.category ? "border-red-500" : "border-gray-300"
-              }`}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                if (formErrors.category)
-                  setFormErrors((prev) => ({ ...prev, category: null }));
-              }}
-              value={category}
-              disabled={loading}
-            >
-              <option value="">Select category</option>
-              {categories.map((cate, idx) => (
-                <option value={cate} key={idx}>
-                  {cate}
-                </option>
-              ))}
-            </select>
-            {formErrors.category && (
-              <p className="text-red-500 text-sm mt-1">{formErrors.category}</p>
-            )}
-          </div>
-
-          {/* Food Type */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1">
-              Select Food Type
-            </label>
-            <select
-              className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 border-gray-300"
-              onChange={(e) => setFoodtype(e.target.value)}
-              value={foodtype}
-              disabled={loading}
-            >
-              <option value="veg">Veg</option>
-              <option value="non-veg">Non-Veg</option>
-            </select>
-          </div>
-
-          {/* Image */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1">
-              Food Image
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 border-gray-300"
-              onChange={handleImageChange}
-              disabled={loading}
-            />
-            {formErrors.image && (
-              <p className="text-red-500 text-sm mt-1">{formErrors.image}</p>
-            )}
-            {previewImage && (
-              <div className="mt-4">
-                <img
-                  src={previewImage}
-                  alt="Preview"
-                  className="w-full h-48 object-cover rounded-lg border shadow-sm"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading || success}
-            className={`w-full font-semibold py-3 px-6 rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${
-              loading || success
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-red-500 hover:bg-red-600 cursor-pointer"
-            } text-white`}
-          >
-            {loading ? (
-              <>
-                <ClipLoader size={18} color="#ffffff" />
-                <span>Saving...</span>
-              </>
-            ) : success ? (
-              <>
-                <FaCheckCircle />
-                <span>Saved!</span>
-              </>
-            ) : (
-              <span>Add Item</span>
-            )}
-          </button>
-        </form>
-      </div>
+        <button
+          type="submit"
+          disabled={loading || success}
+          className={`w-full font-semibold py-3 rounded-lg transition-all shadow-md flex items-center justify-center gap-2 text-white text-sm ${loading || success
+              ? "bg-gray-400/50 cursor-not-allowed"
+              : "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 cursor-pointer"
+            }`}
+        >
+          {loading ? <ClipLoader size={16} color="#fff" /> : "Add Item"}
+        </button>
+      </form>
     </div>
+    </div >
   );
 };
 

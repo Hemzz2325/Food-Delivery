@@ -308,9 +308,9 @@ const Createeditshop = () => {
                 <span>Saving...</span>
               </>
             ) : success ? (
-              <>ChatGPT said:
+              <>
 
-…“Saved”</>
+Saved</>
 ) : myShopData ? (
 "Update Shop"
 ) : (

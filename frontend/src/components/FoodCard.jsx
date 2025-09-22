@@ -10,9 +10,9 @@ const renderStars = (rating = 0) => {
   for (let i = 1; i <= 5; i++) {
     stars.push(
       i <= rating ? (
-        <FaStar key={i} className="text-yellow-500 text-lg" />
+        <FaStar key={i} className="text-yellow-400 text-sm" />
       ) : (
-        <FaRegStar key={i} className="text-yellow-500 text-lg" />
+        <FaRegStar key={i} className="text-yellow-400 text-sm" />
       )
     );
   }
@@ -39,73 +39,70 @@ const FoodCard = ({ data, onAddToCart, cartItem }) => {
   const currentQuantity = cartItem?.quantity || 0;
 
   return (
-    <div className="w-[250px] bg-white rounded-3xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105 transition-all duration-300 flex flex-col overflow-hidden">
+    <div className="w-[200px] bg-white rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 flex flex-col overflow-hidden group">
       
       {/* Food Image */}
-      <div className="relative w-full h-[170px] flex justify-center items-center bg-white">
-        <div className="absolute top-3 right-3 bg-white rounded-full p-1 shadow-md">
+      <div className="relative w-full h-[140px] flex justify-center items-center bg-white overflow-hidden rounded-t-2xl transform transition-transform duration-300 group-hover:scale-105">
+        <div className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md z-10">
           {data.foodtype === "veg" ? (
-            <FaLeaf className="text-green-600 text-lg" />
+            <FaLeaf className="text-green-600 text-sm" />
           ) : (
-            <FaDrumstickBite className="text-red-600 text-lg" />
+            <FaDrumstickBite className="text-red-600 text-sm" />
           )}
         </div>
         <img
           src={data.image || "/assets/food-default.jpg"}
           alt={data.name}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
         />
       </div>
 
       {/* Food Details */}
-      <div className="flex-1 flex flex-col p-4 gap-1">
-        <h1 className="font-semibold text-gray-900 text-base truncate">{data.name}</h1>
+      <div className="flex-1 flex flex-col p-3 gap-1">
+        <h1 className="font-semibold text-gray-900 text-sm truncate">{data.name}</h1>
         <div className="flex items-center gap-1">
           {renderStars(Math.round(data.rating?.average || 0))}
-          <span className="text-gray-500 text-xs">({data.rating?.count || 0})</span>
+          <span className="text-gray-500 text-[10px]">({data.rating?.count || 0})</span>
         </div>
-        <p className="text-sm text-gray-600 capitalize">{data.category}</p>
+        <p className="text-xs text-gray-600 capitalize truncate">{data.category}</p>
 
-        {/* Shop Name & Location */}
+        {/* Shop Name */}
         {data.shop && (
-          <div className="mt-2 text-gray-700 text-xs">
+          <div className="mt-1 text-gray-700 text-[10px]">
             <p className="font-semibold text-gray-800 truncate">{data.shop.name}</p>
-            <p className="truncate">
-              {data.shop.address || `${data.shop.city || ""}, ${data.shop.state || ""}`}
-            </p>
           </div>
         )}
       </div>
 
       {/* Price & Counter */}
-      <div className="flex items-center justify-between px-4 pb-4">
-        <span className="font-bold text-gray-700 text-lg">₹{data.price}</span>
+      <div className="flex items-center justify-between px-3 pb-3">
+        <span className="font-bold text-gray-700 text-sm">₹{data.price}</span>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {currentQuantity === 0 ? (
             <button
               onClick={handleAddToCart}
-              className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+              className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-1 text-xs"
             >
-              <FaShoppingCart size={14} />
-              <span className="text-sm font-semibold">Add</span>
+              <FaShoppingCart size={12} />
+              Add
             </button>
           ) : (
             <div className="flex items-center border rounded-full overflow-hidden shadow-sm bg-white">
               <button
                 onClick={handleDecreaseQuantity}
-                className="px-3 py-2 hover:bg-gray-100 transition-colors text-red-500"
+                className="px-2 py-1 hover:bg-gray-100 transition-colors text-red-500"
               >
-                <FaMinus size={12} />
+                <FaMinus size={10} />
               </button>
-              <span className="px-4 py-2 font-medium text-gray-800 bg-gray-50">
+              <span className="px-3 py-1 font-medium text-gray-800 bg-gray-50 text-xs">
                 {currentQuantity}
               </span>
               <button
                 onClick={handleIncreaseQuantity}
-                className="px-3 py-2 hover:bg-gray-100 transition-colors text-red-500"
+                className="px-2 py-1 hover:bg-gray-100 transition-colors text-red-500"
               >
-                <FaPlus size={12} />
+                <FaPlus size={10} />
               </button>
             </div>
           )}

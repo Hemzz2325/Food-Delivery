@@ -1,28 +1,36 @@
-const CategoryCard = ({ name, image, address, city, state }) => {
+// src/components/CategoryCard.jsx
+import React, { useState } from "react";
+import { assets } from "../assets/assets.js";
+
+const CategoryCard = ({ name, image, onClick }) => {
+  const [imgSrc, setImgSrc] = useState(image || assets?.bag_icon);
+
   return (
-    <div className="flex flex-col items-center gap-3 p-4 rounded-3xl bg-gradient-to-b from-white to-gray-50 shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 ease-out cursor-pointer w-[150px] h-[180px]">
-      {/* Shop Image */}
-      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col items-center w-[80px] h-[100px] p-2 rounded-2xl bg-white shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1 focus:outline-none"
+      aria-label={name ? `Open ${name}` : "Open category"}
+    >
+      {/* Circular Icon */}
+      <div className="relative w-16 h-16 rounded-full overflow-hidden border border-gray-200 shadow-sm transition-transform duration-300 group-hover:scale-110">
         <img
-          src={image}
-          alt={name}
+          src={imgSrc}
+          alt={name || "Category"}
           className="w-full h-full object-cover"
+          onError={() => setImgSrc(assets?.bag_icon)}
+          draggable="false"
+          loading="lazy"
         />
+        {/* Small glow dot */}
+        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
       </div>
 
-      {/* Shop Name */}
-      <p className="text-sm font-bold text-gray-900 text-center capitalize truncate w-full">
-        {name}
+      {/* Name */}
+      <p className="mt-1 text-[12px] text-center font-semibold text-gray-900 truncate">
+        {name || "Category"}
       </p>
-
-      {/* Shop Location */}
-      <p className="text-xs text-gray-500 text-center truncate w-full">
-        {city ? `${city}, ${state}` : address || "Location not available"}
-      </p>
-
-      {/* Decorative underline */}
-      <div className="w-8 h-1 rounded-full bg-gradient-to-r from-purple-400 via-pink-400 to-red-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-    </div>
+    </button>
   );
 };
 

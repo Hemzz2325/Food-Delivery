@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"], // same as current setup
+    origin: ["https://kitchen-kitchen.onrender.com"], // same as current setup
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // includes PATCH for owner/delivery routes
   })

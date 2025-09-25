@@ -1,7 +1,7 @@
 // backend/controllers/orderController.js
 import crypto from "crypto";
 import Order from "../models/orderModel.js";
-import User from "../models/userModel.js";
+import User from "../models/usermodel.js";
 import Shop from "../models/shopModel.js";
 import Item from "../models/itemModel.js";
 import { sendOtpMail } from "../utils/mail.js";

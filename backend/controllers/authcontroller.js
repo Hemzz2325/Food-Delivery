@@ -133,7 +133,7 @@ export const verifyOtp = async (req, res) => {
   }
 };
 
-// RESET PASSWORD
+// RESET PASSWORD should be folleewd
 export const resetPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;

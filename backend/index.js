@@ -9,8 +9,8 @@ import http from "http";
 import { Server } from "socket.io";
 
 // Routers
-import userRouter from "./routes/userRoutes.js";
-import authRouter from "./routes/authRoutes.js";
+import userRouter from "./routes/userroutes.js";
+import authRouter from "./routes/authroutes.js";
 import shopRouter from "./routes/shopRoutes.js";
 import itemRouter from "./routes/itemRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";

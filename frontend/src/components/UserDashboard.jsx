@@ -36,6 +36,13 @@ import menu_6 from "../assets/menu_6.png";
 import menu_7 from "../assets/menu_7.png";
 import menu_8 from "../assets/menu_8.png";
 
+const normalize = (s) =>
+  (s || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+
 // Robust Razorpay loader (loads once and resolves when ready)
 let razorpayPromise;
 function loadRazorpayOnce() {
@@ -204,8 +211,69 @@ const UserDashboard = () => {
   const cartTotal = cartTotalNum.toFixed(2);
   const cartItemsCount = (cart || []).reduce((c, i) => c + (i.quantity || 0), 0);
 
+  // Listen for the Navbar’s debounced global search and apply to items grid
+  const [searchQ, setSearchQ] = useState("");
   useEffect(() => {
-    if (selectedShop) return;
+    const onSearch = (e) => {
+      const q = (e?.detail?.query || "").trim();
+      setSearchQ(q);
+    };
+    window.addEventListener("global-search", onSearch);
+    return () => window.removeEventListener("global-search", onSearch);
+  }, []);
+
+  // Compute filteredItems respecting selectedShop, selectedCategory, then search
+  useEffect(() => {
+    // Scope base list
+    let base = itemsInMyCity || [];
+    if (selectedShop && Array.isArray(shopItems) && shopItems.length) {
+      base = shopItems;
+    } else if (selectedCategory) {
+      base = (itemsInMyCity || []).filter(
+        (item) => item.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Apply search if present
+    const q = normalize(searchQ);
+    if (q) {
+      const list = base.filter((it) => {
+        const name = normalize(it?.name);
+        const category = normalize(it?.category);
+        const foodtype = normalize(it?.foodtype);
+        const tags = Array.isArray(it?.tags) ? it.tags.map(normalize) : [];
+        return (
+          name.includes(q) || category.includes(q) || foodtype.includes(q) || tags.some((t) => t.includes(q))
+        );
+      });
+
+      // Prefer prefix matches, then alphabetical by name
+      const scored = list
+        .map((it) => {
+          const name = normalize(it?.name);
+          const starts = name.startsWith(q) ? 0 : 1;
+          return { it, score: starts, name };
+        })
+        .sort((a, b) => (a.score - b.score) || a.name.localeCompare(b.name))
+        .map((x) => x.it);
+
+      setFilteredItems(scored);
+    } else {
+      // No search: preserve original behavior
+      if (selectedShop) {
+        setFilteredItems(base);
+      } else if (selectedCategory) {
+        setFilteredItems(base);
+      } else {
+        setFilteredItems(itemsInMyCity || []);
+      }
+    }
+  }, [itemsInMyCity, selectedCategory, selectedShop, shopItems, searchQ]);
+
+  // Original category filter default when there’s no search or shop selection
+  useEffect(() => {
+    if (searchQ) return; // search takes precedence
+    if (selectedShop) return; // shop selection takes precedence
     if (selectedCategory) {
       const filtered = (itemsInMyCity || []).filter(
         (item) => item.category?.toLowerCase() === selectedCategory.toLowerCase()
@@ -214,8 +282,9 @@ const UserDashboard = () => {
     } else {
       setFilteredItems(itemsInMyCity || []);
     }
-  }, [selectedCategory, itemsInMyCity, selectedShop]);
+  }, [selectedCategory, itemsInMyCity, selectedShop, searchQ]);
 
+  // Fetch shops by city (original functionality intact)
   useEffect(() => {
     const fetchShops = async () => {
       if (!currentCity || currentCity === "Detecting..." || currentCity === "Location unavailable") return;
@@ -448,7 +517,7 @@ const UserDashboard = () => {
   const totalDisplay = useMemo(()=>cartTotal, [cartTotal]);
 
   return (
-    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6]">
+    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-white">
       <Navbar cartItemsCount={cartItemsCount} onCartClick={() => setShowCart(true)} />
       <Header />
 
@@ -524,6 +593,8 @@ const UserDashboard = () => {
               ? `Items of ${selectedShop?.name || "Shop"}`
               : selectedCategory
               ? `${selectedCategory} Items`
+              : searchQ
+              ? `Results for "${searchQ}"`
               : "Suggested Food Items"}
           </h1>
 
@@ -561,7 +632,11 @@ const UserDashboard = () => {
             )
           ) : (filteredItems || []).length === 0 ? (
             <div className="text-center text-gray-500 py-8">
-              {selectedCategory ? `No ${selectedCategory} items found` : "No items available"}
+              {selectedCategory
+                ? `No ${selectedCategory} items found`
+                : searchQ
+                ? "No matching items"
+                : "No items available"}
             </div>
           ) : (
             (filteredItems || []).map((item, index) => (

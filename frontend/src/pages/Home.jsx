@@ -35,7 +35,7 @@ const OwnerDashboard = () => {
   }
 
   return (
-    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-[#fff9f6]">
+    <div className="w-full min-h-screen pt-[100px] flex flex-col items-center bg-white">
       <Navbar />
 
       <div className="w-full max-w-6xl p-4 space-y-8">

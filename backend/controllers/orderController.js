@@ -5,6 +5,7 @@ import User from "../models/userModel.js";
 import Shop from "../models/shopModel.js";
 import Item from "../models/itemModel.js";
 import { sendOtpMail } from "../utils/mail.js";
+import mongoose from "mongoose";
 
 let razorpay = null;
 const makeOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -36,33 +37,23 @@ export const createOrder = async (req, res) => {
   try {
     const { items, totalAmount, deliveryAddress } = req.body;
     const userId = req.userId;
-
     if (!items || !totalAmount) {
       return res.status(400).json({ message: "Items and total amount are required" });
     }
-
     if (!razorpay) {
-      return res
-        .status(503)
-        .json({ message: "Payment gateway not configured. Orders cannot be created." });
+      return res.status(503).json({ message: "Payment gateway not configured. Orders cannot be created." });
     }
-
     const options = {
-      amount: totalAmount * 100, // amount in paise
+      amount: totalAmount * 100,
       currency: "INR",
       receipt: `order_${Date.now()}`,
       notes: { userId, itemCount: items.length },
     };
-
     const razorpayOrder = await razorpay.orders.create(options);
 
     const order = new Order({
       user: userId,
-      items: items.map((item) => ({
-        item: item.itemId,
-        quantity: item.quantity,
-        price: item.price,
-      })),
+      items: items.map((item) => ({ item: item.itemId, quantity: item.quantity, price: item.price })),
       totalAmount,
       razorpayOrderId: razorpayOrder.id,
       deliveryAddress,
@@ -70,7 +61,6 @@ export const createOrder = async (req, res) => {
     });
 
     await order.save();
-
     res.status(201).json({
       id: razorpayOrder.id,
       currency: razorpayOrder.currency,
@@ -81,7 +71,6 @@ export const createOrder = async (req, res) => {
     res.status(500).json({ message: "Failed to create order", error: error.message });
   }
 };
-
 // Verify Payment
 export const verifyPayment = async (req, res) => {
   try {
@@ -119,6 +108,7 @@ export const verifyPayment = async (req, res) => {
 };
 
 // Get Current Order (latest order for user)
+
 export const getCurrentOrder = async (req, res) => {
   try {
     const userId = req.userId;
@@ -132,10 +122,7 @@ export const getCurrentOrder = async (req, res) => {
       ? { ...order, items: (order.items || []).filter(it => it?.item) }
       : null;
     return res.status(200).json({ order: cleanedOrder });
-
-    return res.status(200).json({ order });
   } catch (err) {
-    console.error("getCurrentOrder error:", err);
     return res.status(500).json({ message: "Failed to fetch current order" });
   }
 };
@@ -169,36 +156,16 @@ export const listMyOrders = async (req, res) => {
       .lean();
     const cleaned = orders.map(o => ({
       ...o,
-      items: (o.items || []).filter(it => it?.item),
+      items: (o.items || []).filter(it => it?.item)
     }));
     return res.status(200).json({ orders: cleaned });
-
-    return res.status(200).json({ orders });
   } catch (err) {
-    console.error("listMyOrders error:", err);
     return res.status(500).json({ message: "Failed to fetch orders" });
   }
 };
 
 
 
-export const getOrderById = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { orderId } = req.params;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const order = await Order.findOne({ _id: orderId, user: userId })
-      .populate("items.item", "name image price category foodtype")
-      .lean();
-
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    return res.status(200).json({ order });
-  } catch (err) {
-    console.error("getOrderById error:", err);
-    return res.status(500).json({ message: "Failed to fetch order" });
-  }
-};
 
 
 
@@ -450,25 +417,18 @@ export const verifyDeliveryOtp = async (req, res) => {
 };
 
 
-
-// GET /api/order/owner/pending-count
+// Owner pending count (needs mongoose)
 export const getOwnerPendingCount = async (req, res) => {
   try {
     const ownerId = new mongoose.Types.ObjectId(req.userId);
-
-    // find all shops owned by this owner
     const shops = await Shop.find({ owner: ownerId }, { _id: 1 });
     const shopIds = shops.map(s => s._id);
-
     if (!shopIds.length) return res.json({ count: 0 });
 
-    // find all items that belong to these shops
     const items = await Item.find({ shop: { $in: shopIds } }, { _id: 1 });
     const itemIds = items.map(i => i._id);
-
     if (!itemIds.length) return res.json({ count: 0 });
 
-    // count unique orders that include any of these items and are not completed/cancelled
     const pipeline = [
       { $match: { status: { $nin: ["delivered", "cancelled"] } } },
       { $unwind: "$items" },
@@ -476,12 +436,101 @@ export const getOwnerPendingCount = async (req, res) => {
       { $group: { _id: "$_id" } },
       { $count: "count" }
     ];
-
     const result = await Order.aggregate(pipeline);
     const count = result?.[0]?.count || 0;
-
     res.json({ count });
   } catch (e) {
     res.status(500).json({ message: "Failed to get pending count", error: e.message });
+  }
+};
+
+
+// Cash-on-Delivery order
+export const createCodOrder = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { items, totalAmount, deliveryAddress } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Items required" });
+    }
+    if (!totalAmount || Number(totalAmount) <= 0) {
+      return res.status(400).json({ message: "Valid total amount required" });
+    }
+
+    const order = new Order({
+      user: userId,
+      items: items.map((it) => ({
+        item: it.itemId,
+        quantity: Number(it.quantity || 1),
+        price: Number(it.price || 0),
+      })),
+      totalAmount: Number(totalAmount),
+      deliveryAddress: deliveryAddress || {},
+      status: "cod_pending",
+      paymentMethod: "COD",
+    });
+
+    await order.save();
+    return res.status(201).json({ message: "COD order placed", order });
+  } catch (e) {
+    return res.status(500).json({ message: "Failed to place COD order", error: e.message });
+  }
+};
+
+// backend/controllers/orderController.js (append this export)
+export const clearCurrentCart = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const order = await Order.findOne({ user: userId, status: { $in: ["pending","cod_pending"] } })
+      .sort({ createdAt: -1 });
+
+    if (order) {
+      await Order.deleteOne({ _id: order._id });
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ message: "Failed to clear cart", error: e.message });
+  }
+};
+
+
+
+
+// in orderController.js
+// backend/controllers/orderController.js (append function)
+export const getOrderById = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { orderId } = req.params;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const order = await Order.findOne({ _id: orderId, user: userId })
+      .populate("items.item", "name image price category foodtype")
+      .lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    return res.status(200).json({ order });
+  } catch (err) {
+    console.error("getOrderById error:", err);
+    return res.status(500).json({ message: "Failed to fetch order" });
+  }
+};
+
+
+export const getOwnerOrderById = async (req, res) => {
+  try {
+    const ownerId = req.userId;
+    const { orderId } = req.params;
+    const shop = await Shop.findOne({ owner: ownerId }).select("items");
+    if (!shop) return res.status(403).json({ message: "No shop found for owner" });
+    const order = await Order.findOne({ _id: orderId, "items.item": { $in: shop.items } })
+      .populate("items.item", "name image price category foodtype");
+    if (!order) return res.status(404).json({ message: "Order not found for this owner" });
+    return res.status(200).json({ order });
+  } catch (e) {
+    return res.status(500).json({ message: "Failed to fetch owner order" });
   }
 };

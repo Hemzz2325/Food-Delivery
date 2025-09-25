@@ -156,8 +156,9 @@ const AddItem = () => {
 
         {/* Icon */}
         <div className="flex justify-center -mt-10">
-          <div className="bg-gradient-to-tr from-orange-400 to-red-300 p-4 rounded-2xl shadow-md">
-            <FaUtensils className="text-white w-8 h-8" />
+          <div className="bg-gradient-to-tr p-4 rounded-2xl shadow-md">
+         
+            <img className="text-white w-8 h-8" src="/cutlery.png" alt="" />
           </div>
         </div>
 

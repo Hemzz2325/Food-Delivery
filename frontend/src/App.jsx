@@ -22,6 +22,7 @@ import Delivery from "./pages/Delivery";           // keep only this one
 import RoleGuard from "./components/RoleGuard";
 import ErrorBoundary from "./components/ErrorBoundary";
 import OwnerDashboard from "./components/OwnerDashboard";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   useGetCurrUser();
@@ -34,16 +35,26 @@ function App() {
 
   return (
     <ErrorBoundary>
+      {/* ✅ Routes */}
       <Routes>
         <Route path="/signup" element={!userData ? <Signup /> : <Navigate to="/" />} />
         <Route path="/signin" element={!userData ? <Signin /> : <Navigate to="/" />} />
-        <Route path="/forgot-password" element={!userData ? <Forgotpassword /> : <Navigate to="/" />} />
+        <Route
+          path="/forgot-password"
+          element={!userData ? <Forgotpassword /> : <Navigate to="/" />}
+        />
 
         <Route path="/" element={userData ? <Home /> : <Navigate to="/signin" />} />
 
-        <Route path="/create-edit-shop" element={userData ? <Createeditshop /> : <Navigate to="/signin" />} />
+        <Route
+          path="/create-edit-shop"
+          element={userData ? <Createeditshop /> : <Navigate to="/signin" />}
+        />
         <Route path="/add-item" element={userData ? <AddItem /> : <Navigate to="/signin" />} />
-        <Route path="/edit-item/:itemId" element={userData ? <EditItem /> : <Navigate to="/signin" />} />
+        <Route
+          path="/edit-item/:itemId"
+          element={userData ? <EditItem /> : <Navigate to="/signin" />}
+        />
 
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
@@ -55,7 +66,7 @@ function App() {
           path="/owner/orders"
           element={
             <RoleGuard allow={["owner"]}>
-              <OwnerOrders />  {/* was <OwnerOrders /> */}
+              <OwnerOrders />
             </RoleGuard>
           }
         />
@@ -71,6 +82,9 @@ function App() {
 
         <Route path="*" element={userData ? <Home /> : <Navigate to="/signin" />} />
       </Routes>
+
+      {/* ✅ Toaster must be outside Routes */}
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
     </ErrorBoundary>
   );
 }

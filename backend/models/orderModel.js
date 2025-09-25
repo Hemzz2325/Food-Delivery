@@ -31,41 +31,40 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "paid", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"],
+    enum: ["pending","paid","confirmed","preparing","out_for_delivery","delivered","cancelled","cod_pending"],
     default: "pending"
   },
-  razorpayOrderId: {
+  paymentMethod: {
     type: String,
-    required: true
+    enum: ["ONLINE","COD"],
+    default: "ONLINE"
   },
-  razorpayPaymentId: {
-    type: String
-  },
-  razorpaySignature: {
-    type: String
-  },
+
+  // Optional for COD, filled for ONLINE
+  razorpayOrderId: { type: String },
+  razorpayPaymentId: { type: String },
+  razorpaySignature: { type: String },
+
+  // Single deliveryAddress definition including optional lat/lng
   deliveryAddress: {
     address: String,
     city: String,
     state: String,
-    pincode: String
+    pincode: String,
+    lat: Number,
+    lng: Number
   },
+
   deliveryBoy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
 
-  deliveryOtp: { type: String },           // one-time code sent to customer
+  deliveryOtp: { type: String },
   otpExpiry: { type: Date },
-  estimatedDeliveryTime: {
-    type: Date
-  },
-  paidAt: {
-    type: Date
-  },
-  deliveredAt: {
-    type: Date
-  }
+  estimatedDeliveryTime: { type: Date },
+  paidAt: { type: Date },
+  deliveredAt: { type: Date }
 }, {
   timestamps: true
 });

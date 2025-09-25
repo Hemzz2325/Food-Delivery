@@ -117,33 +117,20 @@ export const getMyShop = async (req, res) => {
 /**
  * Get Shops By City (case-insensitive)
  */
+// controllers/shopController.js
 export const getShopByCity = async (req, res) => {
   try {
     const city = req.params.city;
     if (!city) return res.status(400).json({ message: "City is required" });
 
-    console.log("🏪 Fetching shops for city:", city);
+    const shops = await Shop.find({ city: { $regex: new RegExp(city, "i") } })
+      .populate([
+        { path: "owner", select: "fullName email" },
+        { path: "items", options: { sort: { updatedAt: -1 } } }
+      ]);
 
-    const shops = await Shop.find({
-      city: { $regex: new RegExp(city, "i") },
-    })
-    .populate([
-      { path: "owner", select: "fullName email" },
-      { path: "items", options: { sort: { updatedAt: -1 } } }
-    ]);
-
-    console.log(`✅ Found ${shops.length} shops in ${city}`);
-
-    if (!shops || shops.length === 0) {
-      return res.status(404).json({ message: "No shops found in this city" });
-    }
-
-    res.status(200).json({ shops });
+    return res.status(200).json({ shops }); // 200 even if empty
   } catch (error) {
-    console.error("❌ Get shops by city error:", error);
-    res.status(500).json({ 
-      message: "Get shops by city error", 
-      error: error.message 
-    });
+    return res.status(500).json({ message: "Get shops by city error", error: error.message });
   }
 };

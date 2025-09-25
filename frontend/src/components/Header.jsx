@@ -6,7 +6,7 @@ import { assets } from "../assets/assets.js";
 
 const Header = () => {
   const { city } = useSelector((s) => s.user);
-  const heroImg = assets?.header_img || "/src/assets/header_img.jpg";
+  const heroImg =  "/userdashbaord.png";
 
   // Title reveals each word with a small delay
   const title = "Fresh food, fast delivery".split(" ");

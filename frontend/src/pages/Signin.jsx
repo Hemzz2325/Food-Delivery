@@ -109,39 +109,44 @@ const SignIn = () => {
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Fullscreen Background */}
-      <img
-        src="/signin_img.png"
-        alt="background"
-        className="absolute inset-0 w-full h-full object-cover"
-        loading="eager"
-      />
+      <video
+  className="absolute inset-0 w-full h-full object-cover"
+  src="/signin3.mp4"
+  poster="/signin_img.webp"
+  autoPlay
+  muted
+  playsInline
+  loop
+  preload="metadata"
+/>
+
       {/* Optional overlay for contrast */}
       <div className="absolute inset-0 " />
 
       {/* Right-side Form */}
-      <div className="relative min-h-screen w-full flex items-center justify-start px-10">
+      <div className="relative min-h-screen w-full flex items-center justify-center px-10">
         <div
           className="
             max-w-sm w-full px-6 py-6 
             rounded-2xl 
-            bg-white/0 
+             
             backdrop-blur-sm
             border border-white/30 
             shadow-lg 
             animate-[slideIn_0.6s_ease-out]
           "
         >
-          <h1 className="text-3xl font-extrabold mb-2 text-red-500 drop-shadow">
+          <h1 className="text-3xl font-bold mb-2 text-red-500 drop-shadow">
             Country-Kitchen
           </h1>
-          <p className="text-gray-200 mb-4">Sign in to continue enjoying tasty food</p>
+          <p className="text-gray-100 font-bold text-md mb-4">Sign in to continue enjoying tasty food</p>
 
           {/* <div className="mt-2 text-xs text-gray-300">Backend: {serverUrl}</div> */}
 
           {/* Sign-in form */}
           <form onSubmit={handleSignIn} className="space-y-4 mt-4">
             <div>
-              <label className="block text-gray-200 font-medium mb-1 px-32 ">E-Mail</label>
+              <label className="block text-gray-200 font-bold mb-1 ">E-Mail</label>
               <input
                 type="email"
                 value={email}
@@ -155,17 +160,17 @@ const SignIn = () => {
                   px-4 py-3 
                   bg-white/20 
                   text-white 
-                  placeholder-gray-200 
+                  placeholder-white
                   focus:outline-none 
                   focus:ring-2 focus:ring-red-500 
-                  backdrop-blur-md
+                  backdrop-blur-sm
                 "
                 placeholder="Enter your email"
               />
             </div>
 
             <div>
-              <label className="block text-gray-200 font-medium mb-1 px-30">Password</label>
+              <label className="block text-gray-200 font-bold mb-1">Password</label>
               <input
                 type="password"
                 value={password}
@@ -179,24 +184,24 @@ const SignIn = () => {
                   px-4 py-3 
                   bg-white/20 
                   text-white 
-                  placeholder-gray-200 
+                  placeholder-white
                   focus:outline-none 
                   focus:ring-2 focus:ring-red-500 
-                  backdrop-blur-md
+                  backdrop-blur-sm
                 "
                 placeholder="Enter your password"
               />
             </div>
 
             <div
-              className="text-right text-red-300 cursor-pointer text-sm"
+              className="text-right text-red-600 cursor-pointer text-md font-mdium hover:underline"
               onClick={() => navigate("/forgot-password")}
             >
               Forgot Password?
             </div>
 
             {error && (
-              <div className="bg-red-100/50 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+              <div className="bg-red-100/50 border border-red-400  text-red-700 px-3 py-2 rounded text-sm">
                 {error}
               </div>
             )}
@@ -231,14 +236,14 @@ const SignIn = () => {
               bg-white/10 
               text-white 
               font-semibold 
-              flex items-center justify-center gap-2 
+              flex items-center justify-center gap-3 
               transition-transform duration-200 
               hover:scale-105 
               shadow-sm
               ${loading ? "opacity-50 cursor-not-allowed" : ""}
             `}
           >
-            <FcGoogle size={20} />
+            <FcGoogle size={25} />
             <span>{loading ? "Processing..." : "Sign in with Google"}</span>
           </button>
 

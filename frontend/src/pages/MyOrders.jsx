@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { IoIosArrowBack } from "react-icons/io";
 import { useNavigate } from "react-router-dom";
-import api from "../lib/api"; // shared axios instance with baseURL/credentials/timeouts
+import api from "../lib/api";
 import Skeleton from "../components/Skeleton";
 
-// Small star rating control
+// ⭐ Star rating control (kept as-is, just slightly styled)
 const Stars = ({ value = 0, onChange }) => {
   const [hover, setHover] = useState(0);
   return (
@@ -16,7 +16,9 @@ const Stars = ({ value = 0, onChange }) => {
           onMouseEnter={() => setHover(n)}
           onMouseLeave={() => setHover(0)}
           onClick={() => onChange(n)}
-          className={`text-xl ${((hover || value) >= n ? "text-yellow-500" : "text-gray-300")}`}
+          className={`text-xl transition-colors ${
+            (hover || value) >= n ? "text-yellow-500" : "text-gray-300"
+          }`}
           aria-label={`Rate ${n}`}
           type="button"
         >
@@ -27,27 +29,47 @@ const Stars = ({ value = 0, onChange }) => {
   );
 };
 
-// Render a single order with its items and (if delivered) per-item rating
+// Order card with Zomato-style design
 const OrderCard = ({ order, onTrack }) => {
-  const created = new Date(order.createdAt).toLocaleString();
+  const created = new Date(order.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   const items = Array.isArray(order.items) ? order.items : [];
   const itemsCount = items.reduce((n, it) => n + (it?.quantity || 0), 0);
+  const isCOD = order.paymentMethod === "COD" && order.status === "cod_pending";
+
+  // Map statuses to styles
+  const statusStyles = {
+    delivered: "bg-green-100 text-green-700",
+    preparing: "bg-yellow-100 text-yellow-700",
+    "out for delivery": "bg-blue-100 text-blue-700",
+    cancelled: "bg-red-100 text-red-700",
+    cod_pending: "bg-orange-100 text-orange-700",
+  };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-sm border">
-      <div className="flex justify-between items-start">
+    <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+      {/* Header */}
+      <div className="flex justify-between items-center px-4 py-3 border-b">
         <div>
-          <p className="text-sm text-gray-500">Order ID</p>
-          <p className="font-mono text-xs break-all">{order._id}</p>
+          <p className="text-xs text-gray-500">Order ID</p>
+          <p className="font-mono text-sm">{order._id}</p>
         </div>
-        <span className="px-2 py-1 rounded text-xs bg-gray-100 capitalize">
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+            statusStyles[order.status] || "bg-gray-100 text-gray-600"
+          }`}
+        >
           {order.status}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+      {/* Details */}
+      <div className="px-4 py-3 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-gray-500">Placed</p>
+          <p className="text-gray-500">Placed on</p>
           <p className="font-medium">{created}</p>
         </div>
         <div>
@@ -58,36 +80,42 @@ const OrderCard = ({ order, onTrack }) => {
           <p className="text-gray-500">Total</p>
           <p className="font-semibold">₹{Number(order.totalAmount || 0).toFixed(2)}</p>
         </div>
+        {isCOD && (
+          <div className="col-span-2">
+            <p className="text-orange-600 font-semibold">
+              Pay ₹{Number(order.totalAmount || 0).toFixed(2)} on delivery
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Items list */}
-      <div className="mt-4 divide-y">
+      {/* Items */}
+      <div className="divide-y">
         {items
-          .filter((it) => it?.item) // guard against null-populated items
+          .filter((it) => it?.item)
           .map((it, idx) => (
-            <div key={it.item?._id || idx} className="py-3 flex items-center gap-3">
+            <div key={it.item?._id || idx} className="flex items-center gap-3 px-4 py-3">
               <img
                 src={it.item?.image}
                 alt={it.item?.name || "item"}
-                className="w-14 h-14 rounded object-cover bg-gray-100"
+                className="w-16 h-16 rounded-lg object-cover bg-gray-100"
               />
               <div className="flex-1">
                 <p className="font-medium">{it.item?.name || "Unavailable"}</p>
                 <p className="text-xs text-gray-500 capitalize">
                   {it.item?.category} • {it.item?.foodtype}
                 </p>
-                <p className="text-sm mt-1">
-                  × {it.quantity || 1} • ₹{((Number(it.price) || 0) * (it.quantity || 1)).toFixed(2)}
+                <p className="text-sm mt-1 text-gray-700">
+                  × {it.quantity || 1} • ₹
+                  {((Number(it.price) || 0) * (it.quantity || 1)).toFixed(2)}
                 </p>
 
-                {/* Show rating only for delivered orders */}
                 {order.status === "delivered" && it.item?._id && (
                   <div className="mt-2 flex items-center gap-2">
                     <Stars
                       value={0}
                       onChange={async (v) => {
                         try {
-                          // Rate this item (Stage 6 endpoint)
                           await api.post(`/api/item/rate/${it.item._id}`, { rating: v });
                           alert("Thanks for rating!");
                         } catch (e) {
@@ -103,10 +131,11 @@ const OrderCard = ({ order, onTrack }) => {
           ))}
       </div>
 
-      <div className="mt-4 flex gap-3">
+      {/* Footer */}
+      <div className="px-4 py-3 flex justify-end border-t">
         <button
           onClick={() => onTrack(order._id)}
-          className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+          className="px-4 py-2 rounded-lg bg-pink-600 text-white font-medium hover:bg-pink-700 transition"
           type="button"
         >
           Track order
@@ -126,7 +155,6 @@ const MyOrders = () => {
     setErr("");
     setLoading(true);
     try {
-      // Use the shared API instance
       const { data } = await api.get("/api/order/my-orders");
       setOrders(data?.orders || []);
     } catch (e) {
@@ -144,8 +172,9 @@ const MyOrders = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-4">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate(-1)}
             className="p-2 rounded-full hover:bg-gray-200"
@@ -154,14 +183,15 @@ const MyOrders = () => {
           >
             <IoIosArrowBack size={22} />
           </button>
-          <h1 className="text-2xl font-semibold">My Orders</h1>
+          <h1 className="text-2xl font-bold">My Orders</h1>
         </div>
 
+        {/* Loading / Error / Empty */}
         {loading ? (
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <Skeleton className="h-5 w-32 mb-3" />
-            <Skeleton className="h-24 w-full mb-2" />
-            <Skeleton className="h-24 w-full mb-2" />
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
           </div>
         ) : err ? (
           <div className="bg-white rounded-lg p-4 text-red-600 shadow-sm">{err}</div>

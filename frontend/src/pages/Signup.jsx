@@ -85,29 +85,41 @@ const Signup = () => {
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Background */}
-      <img
-        src="/signin_img.png"
-        alt="background"
-        className="absolute inset-0 w-full h-full object-cover"
-        loading="eager"
-      />
-      <div className="absolute inset-0 " />
+        <video
+  className="absolute inset-0 w-full h-full object-cover"
+  src="/signin.mp4"
+  poster="/signin_img.webp"
+  autoPlay
+  muted
+  playsInline
+  loop
+  preload="metadata"
+/>
 
       {/* Right-side Form */}
-<div className="relative min-h-screen w-full flex items-center justify-start px-6">
+<div className="relative min-h-screen w-full flex items-center justify-center px-6 gap-1">
   <div
-    className="max-w-md w-full px-6 py-6 rounded-2xl shadow-2xl
+    className="max-w-sm w-full px-6 py-6 rounded-2xl shadow-2xl
     backdrop-blur-sm  border border-white/90
-    animate-[slideIn_0.6s_ease-out] flex flex-col gap-3 min-h-[580px]"
+    animate-[slideIn_0.6s_ease-out] flex flex-col gap-2 min-h-[580px]"
   >
     <h1 className="text-2xl font-bold text-red-500">Country-Kitchen</h1>
-    <p className="text-gray-700 text-sm">Create your account</p>
+    <p className="text-gray-100 font-semibold text-md ">Create your account</p>
 
     {/* Inputs */}
     <input
       type="text"
       placeholder="Full Name"
-      className="w-full border rounded-lg px-3 py-3 text-sm bg-white text-gray-800 focus:outline-none focus:border-red-600 border-neutral-300"
+      className=" w-full 
+                  border border-gray-300 
+                  rounded-lg 
+                  px-4 py-3 
+                  bg-white/20 
+                  text-white 
+                  placeholder-white
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-red-500 
+                  backdrop-blur-sm"
       value={fullName}
       onChange={(e) => setFullName(e.target.value)}
       disabled={loading}
@@ -115,7 +127,16 @@ const Signup = () => {
     <input
       type="email"
       placeholder="E-mail"
-      className="w-full border rounded-lg px-3 py-3 text-sm bg-white text-gray-800 focus:outline-none focus:border-red-600 border-neutral-300"
+      className=" w-full 
+                  border border-gray-300 
+                  rounded-lg 
+                  px-4 py-3 
+                  bg-white/20 
+                  text-white 
+                  placeholder-white
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-red-500 
+                  backdrop-blur-sm"
       value={email}
       onChange={(e) => setEmail(e.target.value)}
       disabled={loading}
@@ -123,7 +144,16 @@ const Signup = () => {
     <input
       type="text"
       placeholder="Mobile Number"
-      className="w-full border rounded-lg px-3 py-3 text-sm bg-white text-gray-800 focus:outline-none focus:border-red-600 border-neutral-300"
+      className=" w-full 
+                  border border-gray-300 
+                  rounded-lg 
+                  px-4 py-3 
+                  bg-white/20 
+                  text-white 
+                  placeholder-white
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-red-500 
+                  backdrop-blur-sm"
       value={mobile}
       onChange={(e) => setMobile(e.target.value)}
       disabled={loading}
@@ -131,7 +161,16 @@ const Signup = () => {
     <input
       type="password"
       placeholder="Password"
-      className="w-full border rounded-lg px-3 py-3 text-sm bg-white text-gray-800 focus:outline-none focus:border-red-600 border-neutral-300"
+      className=" w-full 
+                  border border-gray-300 
+                  rounded-lg 
+                  px-4 py-3 
+                  bg-white/20 
+                  text-white 
+                  placeholder-white
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-red-500 
+                  backdrop-blur-sm"
       value={password}
       onChange={(e) => setPassword(e.target.value)}
       disabled={loading}
@@ -178,23 +217,23 @@ const Signup = () => {
               bg-white/10 
               text-white 
               font-semibold 
-              flex items-center justify-center gap-2 
+              flex items-center justify-center gap-4
               transition-transform duration-200 
               hover:scale-105 
               shadow-sm
               ${loading ? "opacity-50 cursor-not-allowed" : ""}
             `}
     >
-      <FcGoogle size={18} />
+      <FcGoogle size={25} />
       <span>{loading ? "Processing..." : "Sign up with Google"}</span>
     </button>
 
     {/* Signin link */}
     <p
-      className="text-center mt-1 text-sm cursor-pointer text-gray-800"
+      className="text-center mt-1 text-md cursor-pointer text-gray-100 font-semibold"
       onClick={() => navigate("/signin")}
     >
-      Already have an account? <span className="text-red-500">Sign in</span>
+      Already have an account? <span className="text-red-500 text-md">Sign in</span>
     </p>
   </div>
 </div>

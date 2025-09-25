@@ -17,7 +17,7 @@ export const signIn = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
   const token = genToken(user._id);
-  res.cookie("token", token, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 3600 * 1000 });
+  res.cookie("token", token, { secure:true, httpOnly: true, sameSite: "none", maxAge: 7 * 24 * 3600 * 1000 });
 
   return res.status(200).json({ message: "User signed in successfully", token, user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, mobile: user.mobile } });
   } catch (error) {
@@ -68,7 +68,7 @@ export const googleAuth = async (req, res) => {
     }
 
     const token = genToken(user._id);
-    res.cookie("token", token, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 3600 * 1000 });
+    res.cookie("token", token, { secure:true, httpOnly: true, sameSite: "none", maxAge: 7 * 24 * 3600 * 1000 });
 
   return res.status(200).json({ message: "Google Auth successful", token, user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, mobile: user.mobile } });
   } catch (error) {
@@ -90,7 +90,7 @@ export const signUp = async (req, res) => {
     const newUser = await User.create({ fullName, email, password: hashed, mobile, role: role || "user" });
 
     const token = genToken(newUser._id);
-    res.cookie("token", token, { httpOnly: true, sameSite: "strict", maxAge: 7 * 24 * 3600 * 1000 });
+    res.cookie("token", token, { secure:true, httpOnly: true, sameSite: "none", maxAge: 7 * 24 * 3600 * 1000 });
 
   return res.status(201).json({ message: "User created", token, user: { id: newUser._id, email: newUser.email, fullName: newUser.fullName, role: newUser.role, mobile: newUser.mobile } });
   } catch (error) {

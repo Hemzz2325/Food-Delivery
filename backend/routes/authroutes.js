@@ -8,7 +8,7 @@ import {
   signOut, 
   signUp, 
   verifyOtp 
-} from "../controllers/authController.js";
+} from "../controllers/authcontroller.js";
 
 const router = express.Router();
 

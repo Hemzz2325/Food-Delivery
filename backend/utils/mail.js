@@ -9,19 +9,15 @@ async function getTransporter() {
   if (transporter) return transporter;
 
   if (useOAuth2) {
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user: EMAIL,
-        clientId: GMAIL_CLIENT_ID,
-        clientSecret: GMAIL_CLIENT_SECRET,
-        refreshToken: GMAIL_REFRESH_TOKEN,
-      },
-      connectionTimeout: 20000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-    });
+   transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: { user: EMAIL, pass: PASS },
+  connectionTimeout: 20000,
+  greetingTimeout: 15000,
+  socketTimeout: 30000,
+  family: 4,
+});
+
   } else {
     // Primary: SMTPS 465 (TLS)
     transporter = nodemailer.createTransport({

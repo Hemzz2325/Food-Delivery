@@ -41,6 +41,17 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/api/test/mail", async (_req, res) => {
+  try {
+    const { sendOtpMail } = await import("./utils/mail.js");
+    await sendOtpMail(process.env.EMAIL, "Render SMTP Test", "Hello from Render");
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(502).json({ ok:false, code: e?.code, msg: e?.message, resp: e?.response });
+  }
+});
+
+
 // Mount routers (unchanged)
 app.use("/api/user", userRouter);
 app.use("/api/auth", authRouter);

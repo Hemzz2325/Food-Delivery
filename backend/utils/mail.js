@@ -1,14 +1,6 @@
 import nodemailer from "nodemailer";
 
-const {
-  EMAIL,
-  PASS,
-  FROM_EMAIL,
-  GMAIL_CLIENT_ID,
-  GMAIL_CLIENT_SECRET,
-  GMAIL_REFRESH_TOKEN,
-} = process.env;
-
+const { EMAIL, PASS, FROM_EMAIL, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
 const useOAuth2 = Boolean(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
 
 let transporter;
@@ -26,13 +18,22 @@ async function getTransporter() {
         clientSecret: GMAIL_CLIENT_SECRET,
         refreshToken: GMAIL_REFRESH_TOKEN,
       },
+      connectionTimeout: 20000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     });
   } else {
+    // Primary: SMTPS 465 (TLS)
     transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465,
+      secure: true,
       auth: { user: EMAIL, pass: PASS },
+      tls: { minVersion: "TLSv1.2" },
+      connectionTimeout: 20000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+      family: 4, // prefer IPv4 to avoid IPv6 routing issues
     });
   }
 
@@ -48,7 +49,6 @@ async function getTransporter() {
 export const sendOtpMail = async (to, subject, text, html) => {
   const tx = await getTransporter();
   const from = FROM_EMAIL || EMAIL;
-
   try {
     const info = await tx.sendMail({
       from,

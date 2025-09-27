@@ -16,15 +16,20 @@ export const signIn = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-  const token = genToken(user._id);
-  res.cookie("token", token, { secure:true, httpOnly: true, sameSite: "none", maxAge: 7 * 24 * 3600 * 1000 });
+    const token = genToken(user._id);
+    res.cookie("token", token, { secure: true, httpOnly: true, sameSite: "none", maxAge: 7 * 24 * 3600 * 1000 });
 
-  return res.status(200).json({ message: "User signed in successfully", token, user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, mobile: user.mobile } });
+    return res.status(200).json({
+      message: "User signed in successfully",
+      token,
+      user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, mobile: user.mobile }
+    });
   } catch (error) {
-  console.error("Signin error:", error, error.stack);
-  return res.status(500).json({ message: "Signin error", error: error.message });
+    console.error("Signin error:", error, error.stack);
+    return res.status(500).json({ message: "Signin error", error: error.message });
   }
 };
+
 
 // SEND OTP
 export const sendOtp = async (req, res) => {
@@ -33,9 +38,9 @@ export const sendOtp = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not present" });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.resetOtp = otp;
-    user.otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
+    user.otpExpiry = Date.now() + 5 * 60 * 1000;
     user.isOtpVerified = false;
     await user.save();
 
@@ -48,8 +53,8 @@ export const sendOtp = async (req, res) => {
 
     return res.status(200).json({ message: "OTP sent to your email" });
   } catch (error) {
-  console.error("OTP error:", error, error.stack);
-  return res.status(500).json({ message: "Error in sending OTP", error: error.message });
+    console.error("OTP error:", error, error.stack);
+    return res.status(500).json({ message: "Error in sending OTP", error: error.message });
   }
 };
 

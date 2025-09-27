@@ -1,11 +1,10 @@
-// utils/mail.js
 import nodemailer from "nodemailer";
 
 const {
-  EMAIL,                 // sender Gmail address
-  PASS,                  // 16-char Gmail App Password
-  FROM_EMAIL,            // optional; defaults to EMAIL
-  GMAIL_CLIENT_ID,       // optional if you later switch to OAuth2
+  EMAIL,
+  PASS,
+  FROM_EMAIL,
+  GMAIL_CLIENT_ID,
   GMAIL_CLIENT_SECRET,
   GMAIL_REFRESH_TOKEN,
 } = process.env;
@@ -32,7 +31,7 @@ async function getTransporter() {
     transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
-      secure: false, // STARTTLS
+      secure: false,
       auth: { user: EMAIL, pass: PASS },
     });
   }
@@ -52,7 +51,7 @@ export const sendOtpMail = async (to, subject, text, html) => {
 
   try {
     const info = await tx.sendMail({
-      from,               // keep equal to the authenticated Gmail address
+      from,
       to,
       subject: subject || "Your OTP",
       text: text || "Your OTP code.",

@@ -1,8 +1,6 @@
-// src/components/Navbar.jsx
-import React, { useEffect, useState } from "react";
-import { FaMapMarkerAlt, FaPlus, FaReceipt, FaShoppingCart } from "react-icons/fa";
+import React, { useEffect, useState, useCallback } from "react";
+import { FaMapMarkerAlt, FaShoppingCart } from "react-icons/fa";
 import { FiSearch } from "react-icons/fi";
-import { RxCross2 } from "react-icons/rx";
 import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
 import { serverUrl } from "../config";
@@ -19,9 +17,12 @@ const Navbar = ({ cartItemsCount = 0 }) => {
   const [showinfo, setShowinfo] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
 
-  const displayLocation = city && city !== "Detecting..." ? city : "Detecting location...";
-  const BASE_URL = import.meta.env.VITE_SERVER_URL || serverUrl || "http://localhost:8000";
+  const displayLocation =
+    city && city !== "Detecting..." ? city : "Detecting location...";
+  const BASE_URL =
+    import.meta.env.VITE_SERVER_URL || serverUrl || "http://localhost:8000";
 
   const fetchPending = async () => {
     try {
@@ -61,6 +62,17 @@ const Navbar = ({ cartItemsCount = 0 }) => {
     } catch {}
   };
 
+  /** 🔑 Dispatch a custom event so UserDashboard can filter items */
+  const emitSearchEvent = useCallback((query) => {
+    window.dispatchEvent(new CustomEvent("global-search", { detail: { query } }));
+  }, []);
+
+  // Debounce search to avoid excessive dispatches
+  useEffect(() => {
+    const t = setTimeout(() => emitSearchEvent(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput, emitSearchEvent]);
+
   return (
     <div className="w-full fixed top-0 z-[50] bg-white shadow-md">
       <div className="h-[70px] flex items-center justify-between px-4 md:px-8">
@@ -88,6 +100,8 @@ const Navbar = ({ cartItemsCount = 0 }) => {
                 className="flex-1 text-sm px-2 outline-none text-gray-700 placeholder-gray-400"
                 type="text"
                 placeholder="Search delicious foods"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
           )}
@@ -98,8 +112,14 @@ const Navbar = ({ cartItemsCount = 0 }) => {
           {userData?.role === "user" && (
             <>
               {/* Cart */}
-              <div className="relative cursor-pointer group" onClick={() => navigate("/checkout")}>
-                <FaShoppingCart size={22} className="text-[#EF233C] hover:scale-110 transition-transform duration-300" />
+              <div
+                className="relative cursor-pointer group"
+                onClick={() => navigate("/checkout")}
+              >
+                <FaShoppingCart
+                  size={22}
+                  className="text-[#EF233C] hover:scale-110 transition-transform duration-300"
+                />
                 {cartItemsCount > 0 && (
                   <span className="absolute -right-2 -top-2 text-xs font-semibold text-white bg-[#EF233C] rounded-full px-[6px] py-[1px] group-hover:scale-110 transition-transform duration-300">
                     {cartItemsCount}
@@ -175,6 +195,8 @@ const Navbar = ({ cartItemsCount = 0 }) => {
               className="flex-1 text-sm px-2 outline-none text-gray-700 placeholder-gray-400"
               type="text"
               placeholder="Search delicious foods"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
         </div>

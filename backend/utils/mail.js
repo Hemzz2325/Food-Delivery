@@ -1,50 +1,33 @@
+// backend/utils/mail.js - COMPLETE REPLACEMENT WITH TLS FIX
 import nodemailer from "nodemailer";
 
-const { EMAIL, PASS, FROM_EMAIL, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
-const useOAuth2 = Boolean(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
+const { EMAIL, PASS } = process.env;
 
 let transporter;
 
-async function getTransporter() {
-  if (transporter) return transporter;
+export async function getTransporter() {
+  const { EMAIL, PASS, NODE_ENV } = process.env;
+  if (!EMAIL || !PASS) throw new Error("Missing EMAIL or PASS");
 
-  if (useOAuth2) {
-   transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: EMAIL, pass: PASS },
-  connectionTimeout: 20000,
-  greetingTimeout: 15000,
-  socketTimeout: 30000,
-  family: 4,
-});
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,          // STARTTLS
+    auth: { user: EMAIL, pass: PASS },
+    tls: {
+      // allow self-signed certs only outside production
+      rejectUnauthorized: NODE_ENV === "production" ? true : false,
+    },
+  });
 
-  } else {
-    // Primary: SMTPS 465 (TLS)
-    transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: EMAIL, pass: PASS },
-      tls: { minVersion: "TLSv1.2" },
-      connectionTimeout: 20000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-      family: 4, // prefer IPv4 to avoid IPv6 routing issues
-    });
-  }
-
-  try {
-    await transporter.verify();
-    console.log("✅ Mail transporter ready");
-  } catch (e) {
-    console.error("❌ Mail verify failed:", e?.message, e?.code, e?.response);
-  }
+  await transporter.verify();
+  console.log("✅ Mail transporter ready");
   return transporter;
 }
 
 export const sendOtpMail = async (to, subject, text, html) => {
   const tx = await getTransporter();
-  const from = FROM_EMAIL || EMAIL;
+  const from = EMAIL;
   try {
     const info = await tx.sendMail({
       from,

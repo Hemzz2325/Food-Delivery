@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { ClipLoader } from "react-spinners";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify"; // ✅ Toast library
 
 const Forgotpassword = () => {
   const [step, setStep] = useState(1);
@@ -17,44 +18,62 @@ const Forgotpassword = () => {
   const navigate = useNavigate();
   const serverUrl = import.meta.env.VITE_SERVER_URL;
 
+  // ---- SEND OTP ----
   const handleSendOtp = async () => {
     setError("");
     setLoading(true);
     try {
       await axios.post(`${serverUrl}/api/auth/send-otp`, { email }, { withCredentials: true });
+      toast.success("✅ OTP has been sent to your email");
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to send OTP");
+      const msg = err.response?.data?.message || "Failed to send OTP";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // ---- VERIFY OTP ----
   const handleVerifyOtp = async () => {
     setError("");
     setLoading(true);
     try {
       await axios.post(`${serverUrl}/api/auth/verify-otp`, { email, otp }, { withCredentials: true });
+      toast.success("✅ OTP verified");
       setStep(3);
     } catch (err) {
-      setError(err.response?.data?.message || "OTP verification failed");
+      const msg = err.response?.data?.message || "OTP verification failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // ---- RESET PASSWORD ----
   const handleResetPassword = async () => {
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match");
+      const msg = "Passwords do not match";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setError("");
     setLoading(true);
     try {
-      await axios.post(`${serverUrl}/api/auth/reset-password`, { email, newPassword }, { withCredentials: true });
+      await axios.post(
+        `${serverUrl}/api/auth/reset-password`,
+        { email, newPassword },
+        { withCredentials: true }
+      );
+      toast.success("🎉 Password reset successfully");
       navigate("/signin");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to reset password");
+      const msg = err.response?.data?.message || "Failed to reset password";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -73,13 +92,13 @@ const Forgotpassword = () => {
           className="w-64 md:w-80 object-contain drop-shadow-lg"
         />
 
-        {/* Right Form Card */}
+        {/* Right Form */}
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 40 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative bg-white/90 backdrop-blur-xl border border-red-100 
-                     rounded-2xl shadow-[0_8px_30px_rgba(239,35,60,0.3)] 
+          className="relative bg-white/90 backdrop-blur-xl border border-red-100
+                     rounded-2xl shadow-[0_8px_30px_rgba(239,35,60,0.3)]
                      w-full max-w-md p-8"
         >
           {/* Header */}
@@ -98,7 +117,7 @@ const Forgotpassword = () => {
             </h1>
           </div>
 
-          {/* Error Message */}
+          {/* Error text */}
           {error && (
             <motion.p
               initial={{ opacity: 0, y: -10 }}

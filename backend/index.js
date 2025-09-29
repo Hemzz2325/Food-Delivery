@@ -1,5 +1,19 @@
-import express from "express";
+// backend/index.js
+// CRITICAL: Load dotenv FIRST before any other imports
 import dotenv from "dotenv";
+dotenv.config();
+
+// Debug: Verify environment variables are loaded
+console.log("🔍 Environment Check:");
+console.log("🔑 PORT:", process.env.PORT ? "✅ Loaded" : "❌ Missing");
+console.log("🔑 MONGODB_URL:", process.env.MONGODB_URL ? "✅ Loaded" : "❌ Missing");
+console.log("🔑 JWT_SECRET:", process.env.JWT_SECRET ? "✅ Loaded" : "❌ Missing");
+console.log("🔑 Razorpay Key ID:", process.env.RAZORPAY_KEY_ID ? `✅ Loaded (${process.env.RAZORPAY_KEY_ID})` : "❌ Missing");
+console.log("🔑 Razorpay Secret:", process.env.RAZORPAY_KEY_SECRET ? "✅ Loaded" : "❌ Missing");
+console.log("");
+
+// Now import everything else
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import connectDb from "./config/db.js";
@@ -12,8 +26,6 @@ import shopRouter from "./routes/shopRoutes.js";
 import itemRouter from "./routes/itemRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
 
-dotenv.config();
-
 const app = express();
 const port = process.env.PORT || 8000;
 
@@ -22,7 +34,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ["https://kitchen-kitchen.onrender.com"],
+    origin: ["https://kitchen-kitchen.onrender.com", "http://localhost:5173"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
@@ -52,7 +64,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["https://kitchen-kitchen.onrender.com"],
+    origin: ["https://kitchen-kitchen.onrender.com", "http://localhost:5173"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   },

@@ -1,5 +1,6 @@
 // backend/controllers/orderController.js
 import crypto from "crypto";
+import Razorpay from "razorpay";
 import Order from "../models/orderModel.js";
 import User from "../models/usermodel.js";
 import Shop from "../models/shopModel.js";
@@ -7,108 +8,210 @@ import Item from "../models/itemModel.js";
 import { sendOtpMail } from "../utils/mail.js";
 import mongoose from "mongoose";
 
-let razorpay = null;
-const makeOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+// Initialize Razorpay with lazy loading
+let razorpayInstance = null;
 
-try {
+function getRazorpayInstance() {
+  if (razorpayInstance) return razorpayInstance;
+  
   const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
-
-  if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
-    const Razorpay = (await import("razorpay")).default;
-    razorpay = new Razorpay({
+  
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    console.warn("⚠️ Razorpay keys missing. Online payments disabled.");
+    return null;
+  }
+  
+  try {
+    razorpayInstance = new Razorpay({
       key_id: RAZORPAY_KEY_ID,
       key_secret: RAZORPAY_KEY_SECRET,
     });
     console.log("✅ Razorpay initialized successfully");
-  } else {
-    console.warn(
-      "⚠️ Razorpay keys missing in environment variables. Payment features will be disabled."
-    );
+    return razorpayInstance;
+  } catch (error) {
+    console.error("❌ Razorpay initialization failed:", error.message);
+    return null;
   }
-} catch (error) {
-  razorpay = null;
-  console.error("❌ Failed to initialize Razorpay:", error.message);
 }
+
+const makeOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // ----------------- CONTROLLERS -----------------
 
-// Create Order
+// Create Order (Online Payment)
 export const createOrder = async (req, res) => {
   try {
     const { items, totalAmount, deliveryAddress } = req.body;
     const userId = req.userId;
-    if (!items || !totalAmount) {
-      return res.status(400).json({ message: "Items and total amount are required" });
+
+    console.log("📦 Creating order:", { userId, itemCount: items?.length, totalAmount });
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Items are required" });
     }
+
+    if (!totalAmount || Number(totalAmount) <= 0) {
+      return res.status(400).json({ message: "Valid total amount required" });
+    }
+
+    // Get Razorpay instance
+    const razorpay = getRazorpayInstance();
+    
     if (!razorpay) {
-      return res.status(503).json({ message: "Payment gateway not configured. Orders cannot be created." });
+      console.error("❌ Razorpay not available");
+      return res.status(503).json({ 
+        message: "Online payment service unavailable. Please use COD or check server configuration.",
+        useCodeInstead: true
+      });
     }
+
+    // Create Razorpay order
     const options = {
-      amount: totalAmount * 100,
+      amount: Math.round(Number(totalAmount) * 100), // Convert to paise
       currency: "INR",
       receipt: `order_${Date.now()}`,
       notes: { userId, itemCount: items.length },
     };
-    const razorpayOrder = await razorpay.orders.create(options);
 
+    console.log("💳 Creating Razorpay order:", options);
+    const razorpayOrder = await razorpay.orders.create(options);
+    console.log("✅ Razorpay order created:", razorpayOrder.id);
+
+    // Create order in database
     const order = new Order({
       user: userId,
-      items: items.map((item) => ({ item: item.itemId, quantity: item.quantity, price: item.price })),
-      totalAmount,
+      items: items.map((item) => ({ 
+        item: item.itemId, 
+        quantity: Number(item.quantity), 
+        price: Number(item.price) 
+      })),
+      totalAmount: Number(totalAmount),
       razorpayOrderId: razorpayOrder.id,
-      deliveryAddress,
+      deliveryAddress: deliveryAddress || {},
       status: "pending",
+      paymentMethod: "ONLINE",
     });
 
     await order.save();
-    res.status(201).json({
+    console.log("✅ Order saved to database:", order._id);
+
+    return res.status(201).json({
       id: razorpayOrder.id,
       currency: razorpayOrder.currency,
       amount: razorpayOrder.amount,
       order,
+      message: "Order created successfully"
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to create order", error: error.message });
+    console.error("❌ Create order error:", error);
+    return res.status(500).json({ 
+      message: "Failed to create order", 
+      error: error.message 
+    });
   }
 };
+
 // Verify Payment
 export const verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
+    console.log("🔐 Verifying payment:", { razorpay_order_id, razorpay_payment_id });
+
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ message: "Missing payment details" });
     }
 
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(503).json({ message: "Payment verification unavailable" });
+    }
+
     // Generate signature and verify
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
     const generated_signature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .update(body)
       .digest("hex");
 
     if (generated_signature !== razorpay_signature) {
+      console.error("❌ Signature mismatch");
       return res.status(400).json({ message: "Payment verification failed" });
     }
 
+    // Update order
     const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      console.error("❌ Order not found:", razorpay_order_id);
+      return res.status(404).json({ message: "Order not found" });
+    }
 
     order.razorpayPaymentId = razorpay_payment_id;
     order.razorpaySignature = razorpay_signature;
     order.status = "paid";
     order.paidAt = new Date();
-
     await order.save();
 
-    res.json({ message: "Payment verified successfully", order });
-  } catch (err) {
-    console.error("verifyPayment error:", err);
-    res.status(500).json({ message: "Internal server error", error: err.message });
+    console.log("✅ Payment verified successfully");
+
+    return res.status(200).json({ 
+      message: "Payment verified successfully", 
+      order 
+    });
+  } catch (error) {
+    console.error("❌ Verify payment error:", error);
+    return res.status(500).json({ 
+      message: "Payment verification failed", 
+      error: error.message 
+    });
   }
 };
 
-// Get Current Order (latest order for user)
+// Create COD Order
+export const createCodOrder = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { items, totalAmount, deliveryAddress } = req.body;
 
+    console.log("💵 Creating COD order:", { userId, itemCount: items?.length, totalAmount });
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Items are required" });
+    }
+
+    if (!totalAmount || Number(totalAmount) <= 0) {
+      return res.status(400).json({ message: "Valid total amount required" });
+    }
+
+    const order = new Order({
+      user: userId,
+      items: items.map((it) => ({
+        item: it.itemId,
+        quantity: Number(it.quantity),
+        price: Number(it.price),
+      })),
+      totalAmount: Number(totalAmount),
+      deliveryAddress: deliveryAddress || {},
+      status: "cod_pending",
+      paymentMethod: "COD",
+    });
+
+    await order.save();
+    console.log("✅ COD order created:", order._id);
+
+    return res.status(201).json({ 
+      message: "COD order placed successfully", 
+      order 
+    });
+  } catch (error) {
+    console.error("❌ Create COD order error:", error);
+    return res.status(500).json({ 
+      message: "Failed to place COD order", 
+      error: error.message 
+    });
+  }
+};
+
+// Get Current Order
 export const getCurrentOrder = async (req, res) => {
   try {
     const userId = req.userId;
@@ -118,33 +221,19 @@ export const getCurrentOrder = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("items.item", "name image price category foodtype")
       .lean();
+
     const cleanedOrder = order
       ? { ...order, items: (order.items || []).filter(it => it?.item) }
       : null;
+
     return res.status(200).json({ order: cleanedOrder });
-  } catch (err) {
+  } catch (error) {
+    console.error("❌ Get current order error:", error);
     return res.status(500).json({ message: "Failed to fetch current order" });
   }
 };
 
-
-// Get all orders for the user
-export const getUserOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.userId })
-      .populate("items.item")
-      .sort({ createdAt: -1 });
-    return res.json({ orders });
-  } catch (err) {
-    if (err?.name === "CastError") {
-      const orders = await Order.find({ user: req.userId }).sort({ createdAt: -1 });
-      return res.json({ orders });
-    }
-    return res.status(500).json({ message: "Failed to fetch orders", error: err.message });
-  }
-};
-
-
+// List My Orders
 export const listMyOrders = async (req, res) => {
   try {
     const userId = req.userId;
@@ -153,58 +242,70 @@ export const listMyOrders = async (req, res) => {
     const orders = await Order.find({ user: userId })
       .sort({ createdAt: -1 })
       .populate("items.item", "name image price category foodtype")
+      .populate("deliveryBoy", "fullName mobile")
       .lean();
+
     const cleaned = orders.map(o => ({
       ...o,
       items: (o.items || []).filter(it => it?.item)
     }));
+
     return res.status(200).json({ orders: cleaned });
-  } catch (err) {
+  } catch (error) {
+    console.error("❌ List my orders error:", error);
     return res.status(500).json({ message: "Failed to fetch orders" });
   }
 };
 
+// Get Order By ID
+export const getOrderById = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { orderId } = req.params;
 
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
+    const order = await Order.findOne({ _id: orderId, user: userId })
+      .populate("items.item", "name image price category foodtype")
+      .populate("deliveryBoy", "fullName mobile")
+      .lean();
 
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-
-//// my perplexity
-
-// Helper: ensure role
-const ensureRole = async (userId, role) => {
-  const u = await User.findById(userId).select("role");
-  return u && u.role === role;
+    return res.status(200).json({ order });
+  } catch (error) {
+    console.error("❌ Get order error:", error);
+    return res.status(500).json({ message: "Failed to fetch order" });
+  }
 };
 
-// Owner: list orders that include items from the owner's shop
+// Owner: List Orders
 export const listOwnerOrders = async (req, res) => {
   try {
     const ownerId = req.userId;
     if (!ownerId) return res.status(401).json({ message: "Unauthorized" });
 
-    // Find the owner's shop and its items
     const shop = await Shop.findOne({ owner: ownerId }).select("_id items");
     if (!shop) return res.status(200).json({ orders: [] });
 
     const itemIds = shop.items || [];
     if (!itemIds.length) return res.status(200).json({ orders: [] });
 
-    // Any order that contains at least one item from this shop
     const orders = await Order.find({ "items.item": { $in: itemIds } })
       .sort({ createdAt: -1 })
       .populate("items.item", "name image price category foodtype")
+      .populate("user", "fullName mobile email")
       .populate("deliveryBoy", "fullName email mobile role")
       .lean();
 
     return res.status(200).json({ orders });
-  } catch (err) {
-    console.error("listOwnerOrders error:", err);
+  } catch (error) {
+    console.error("❌ List owner orders error:", error);
     return res.status(500).json({ message: "Failed to fetch owner orders" });
   }
 };
 
-// Owner: update order status (allowed: confirmed, preparing, out_for_delivery, cancelled)
+// Owner: Update Order Status
 export const updateOrderStatusByOwner = async (req, res) => {
   try {
     const ownerId = req.userId;
@@ -218,7 +319,6 @@ export const updateOrderStatusByOwner = async (req, res) => {
       return res.status(400).json({ message: "Invalid status for owner update" });
     }
 
-    // Ensure this order belongs to the owner's shop via any item
     const shop = await Shop.findOne({ owner: ownerId }).select("items");
     if (!shop) return res.status(403).json({ message: "No shop found for owner" });
 
@@ -232,13 +332,13 @@ export const updateOrderStatusByOwner = async (req, res) => {
     await order.save();
 
     return res.status(200).json({ message: "Status updated", order });
-  } catch (err) {
-    console.error("updateOrderStatusByOwner error:", err);
+  } catch (error) {
+    console.error("❌ Update order status error:", error);
     return res.status(500).json({ message: "Failed to update status" });
   }
 };
 
-// Owner: assign delivery partner by id or email
+// Owner: Assign Delivery
 export const assignDelivery = async (req, res) => {
   try {
     const ownerId = req.userId;
@@ -263,34 +363,35 @@ export const assignDelivery = async (req, res) => {
     }
 
     if (!deliveryUser) return res.status(404).json({ message: "Delivery user not found" });
-    if (deliveryUser.role !== "delivery boy") return res.status(400).json({ message: "User is not a delivery partner" });
+    if (deliveryUser.role !== "delivery boy") {
+      return res.status(400).json({ message: "User is not a delivery partner" });
+    }
 
     order.deliveryBoy = deliveryUser._id;
-    // Optionally move to confirmed if still pending
     if (order.status === "paid") order.status = "confirmed";
     await order.save();
 
     return res.status(200).json({ message: "Delivery assigned", order });
-  } catch (err) {
-    console.error("assignDelivery error:", err);
+  } catch (error) {
+    console.error("❌ Assign delivery error:", error);
     return res.status(500).json({ message: "Failed to assign delivery" });
   }
 };
 
-// Delivery: accept assigned order (server-only for now; UI comes in Stage 4)
+// Delivery: Accept Order
 export const deliveryAccept = async (req, res) => {
   try {
     const userId = req.userId;
     const { orderId } = req.params;
 
-    // Must be delivery role
-    const ok = await ensureRole(userId, "delivery boy");
-    if (!ok) return res.status(403).json({ message: "Forbidden" });
+    const user = await User.findById(userId).select("role");
+    if (!user || user.role !== "delivery boy") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const order = await Order.findOne({ _id: orderId, deliveryBoy: userId });
     if (!order) return res.status(404).json({ message: "Order not found or not assigned" });
 
-    // Move to out_for_delivery if not yet delivered/cancelled
     const terminal = new Set(["delivered", "cancelled"]);
     if (terminal.has(order.status)) {
       return res.status(400).json({ message: `Cannot accept in '${order.status}' state` });
@@ -300,13 +401,13 @@ export const deliveryAccept = async (req, res) => {
     await order.save();
 
     return res.status(200).json({ message: "Order accepted", order });
-  } catch (err) {
-    console.error("deliveryAccept error:", err);
+  } catch (error) {
+    console.error("❌ Delivery accept error:", error);
     return res.status(500).json({ message: "Failed to accept order" });
   }
 };
 
-// Delivery: list orders assigned to current delivery partner
+// Delivery: List Orders
 export const listDeliveryOrders = async (req, res) => {
   try {
     const userId = req.userId;
@@ -315,19 +416,17 @@ export const listDeliveryOrders = async (req, res) => {
     const orders = await Order.find({ deliveryBoy: userId })
       .sort({ createdAt: -1 })
       .populate("items.item", "name image price category foodtype")
+      .populate("user", "fullName mobile email")
       .lean();
 
     return res.status(200).json({ orders });
-  } catch (err) {
-    console.error("listDeliveryOrders error:", err);
+  } catch (error) {
+    console.error("❌ List delivery orders error:", error);
     return res.status(500).json({ message: "Failed to fetch delivery orders" });
   }
 };
 
-/**
- * POST /api/order/delivery/send-otp/:orderId
- * Only the assigned delivery partner can trigger sending the OTP to the customer email.
- */
+// Delivery: Send OTP
 export const sendDeliveryOtp = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -336,24 +435,21 @@ export const sendDeliveryOtp = async (req, res) => {
     const order = await Order.findById(orderId).populate("user", "email fullName");
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Must be the assigned delivery partner
     if (!order.deliveryBoy || order.deliveryBoy.toString() !== String(userId)) {
       return res.status(403).json({ message: "Not authorized to send OTP" });
     }
 
-    // Only allow when the order is on the way
-    if (order.status !== "out_for_delivery" && order.status !== "preparing" && order.status !== "confirmed") {
+    if (!["out_for_delivery", "preparing", "confirmed"].includes(order.status)) {
       return res.status(400).json({ message: `Cannot send OTP in '${order.status}' state` });
     }
 
     const otp = makeOtp();
-    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
 
     order.deliveryOtp = otp;
     order.otpExpiry = expires;
     await order.save();
 
-    // Email the OTP to the customer (uses the same mail utility as auth OTP)
     const to = order.user?.email;
     if (to) {
       const subject = "Country Kitchen Delivery OTP";
@@ -363,17 +459,13 @@ export const sendDeliveryOtp = async (req, res) => {
     }
 
     return res.status(200).json({ message: "OTP sent to customer email" });
-  } catch (err) {
-    console.error("sendDeliveryOtp error:", err);
+  } catch (error) {
+    console.error("❌ Send delivery OTP error:", error);
     return res.status(500).json({ message: "Failed to send OTP" });
   }
 };
 
-/**
- * POST /api/order/delivery/verify-otp/:orderId
- * Only the assigned delivery partner can verify the OTP and mark delivered.
- * Body: { otp: "123456" }
- */
+// Delivery: Verify OTP
 export const verifyDeliveryOtp = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -385,7 +477,6 @@ export const verifyDeliveryOtp = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Must be the assigned delivery partner
     if (!order.deliveryBoy || order.deliveryBoy.toString() !== String(userId)) {
       return res.status(403).json({ message: "Not authorized to verify OTP" });
     }
@@ -402,7 +493,6 @@ export const verifyDeliveryOtp = async (req, res) => {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    // Success: clear OTP and mark delivered
     order.deliveryOtp = undefined;
     order.otpExpiry = undefined;
     order.status = "delivered";
@@ -410,14 +500,13 @@ export const verifyDeliveryOtp = async (req, res) => {
     await order.save();
 
     return res.status(200).json({ message: "Order delivered", order });
-  } catch (err) {
-    console.error("verifyDeliveryOtp error:", err);
+  } catch (error) {
+    console.error("❌ Verify delivery OTP error:", error);
     return res.status(500).json({ message: "Failed to verify OTP" });
   }
 };
 
-
-// Owner pending count (needs mongoose)
+// Owner: Get Pending Count
 export const getOwnerPendingCount = async (req, res) => {
   try {
     const ownerId = new mongoose.Types.ObjectId(req.userId);
@@ -438,99 +527,55 @@ export const getOwnerPendingCount = async (req, res) => {
     ];
     const result = await Order.aggregate(pipeline);
     const count = result?.[0]?.count || 0;
-    res.json({ count });
-  } catch (e) {
-    res.status(500).json({ message: "Failed to get pending count", error: e.message });
+    
+    return res.json({ count });
+  } catch (error) {
+    console.error("❌ Get pending count error:", error);
+    return res.status(500).json({ message: "Failed to get pending count" });
   }
 };
 
-
-// Cash-on-Delivery order
-export const createCodOrder = async (req, res) => {
-  try {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { items, totalAmount, deliveryAddress } = req.body;
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Items required" });
-    }
-    if (!totalAmount || Number(totalAmount) <= 0) {
-      return res.status(400).json({ message: "Valid total amount required" });
-    }
-
-    const order = new Order({
-      user: userId,
-      items: items.map((it) => ({
-        item: it.itemId,
-        quantity: Number(it.quantity || 1),
-        price: Number(it.price || 0),
-      })),
-      totalAmount: Number(totalAmount),
-      deliveryAddress: deliveryAddress || {},
-      status: "cod_pending",
-      paymentMethod: "COD",
-    });
-
-    await order.save();
-    return res.status(201).json({ message: "COD order placed", order });
-  } catch (e) {
-    return res.status(500).json({ message: "Failed to place COD order", error: e.message });
-  }
-};
-
-// backend/controllers/orderController.js (append this export)
+// Clear Current Cart
 export const clearCurrentCart = async (req, res) => {
   try {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const order = await Order.findOne({ user: userId, status: { $in: ["pending","cod_pending"] } })
-      .sort({ createdAt: -1 });
+    const order = await Order.findOne({ 
+      user: userId, 
+      status: { $in: ["pending", "cod_pending"] } 
+    }).sort({ createdAt: -1 });
 
     if (order) {
       await Order.deleteOne({ _id: order._id });
     }
 
     return res.status(200).json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ message: "Failed to clear cart", error: e.message });
+  } catch (error) {
+    console.error("❌ Clear cart error:", error);
+    return res.status(500).json({ message: "Failed to clear cart" });
   }
 };
 
-
-
-
-// in orderController.js
-// backend/controllers/orderController.js (append function)
-export const getOrderById = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { orderId } = req.params;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const order = await Order.findOne({ _id: orderId, user: userId })
-      .populate("items.item", "name image price category foodtype")
-      .lean();
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    return res.status(200).json({ order });
-  } catch (err) {
-    console.error("getOrderById error:", err);
-    return res.status(500).json({ message: "Failed to fetch order" });
-  }
-};
-
-
+// Owner: Get Order By ID
 export const getOwnerOrderById = async (req, res) => {
   try {
     const ownerId = req.userId;
     const { orderId } = req.params;
+
     const shop = await Shop.findOne({ owner: ownerId }).select("items");
     if (!shop) return res.status(403).json({ message: "No shop found for owner" });
+
     const order = await Order.findOne({ _id: orderId, "items.item": { $in: shop.items } })
-      .populate("items.item", "name image price category foodtype");
+      .populate("items.item", "name image price category foodtype")
+      .populate("user", "fullName mobile email")
+      .populate("deliveryBoy", "fullName mobile");
+
     if (!order) return res.status(404).json({ message: "Order not found for this owner" });
+
     return res.status(200).json({ order });
-  } catch (e) {
+  } catch (error) {
+    console.error("❌ Get owner order error:", error);
     return res.status(500).json({ message: "Failed to fetch owner order" });
   }
 };

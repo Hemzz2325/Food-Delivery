@@ -40,100 +40,102 @@ export default function Checkout() {
     });
   }
 
-async function createAppOrder(mode) {
-  const payload = {
-    items: items.map((it) => ({
-      itemId: it._id,
-      quantity: Number(it.quantity),
-      price: Number(it.price),
-    })),
-    deliveryAddress,
-    totalAmount: Number(total),                 // REQUIRED by backend
-  };
+  async function createAppOrder(mode) {
+    const payload = {
+      items: items.map((it) => ({
+        itemId: it._id,
+        quantity: Number(it.quantity),
+        price: Number(it.price),
+      })),
+      deliveryAddress,
+      totalAmount: Number(total), // REQUIRED by backend
+    };
 
-  if (mode === "cod") {
-    // COD endpoint
-    const { data } = await api.post("/api/order/cod", payload);
-    return data?.order; // { _id, totalAmount, paymentMethod: 'COD', status: 'cod_pending' }
-  } else {
-    // Online endpoint (creates Razorpay order server-side)
-    const { data } = await api.post("/api/order/create", payload);
-    return data?.order; // contains razorpayOrderId, pending status
+    if (mode === "cod") {
+      // COD endpoint
+      const { data } = await api.post("/api/order/cod", payload);
+      return data?.order; // { _id, totalAmount, paymentMethod: 'COD', status: 'cod_pending' }
+    } else {
+      // Online endpoint (creates Razorpay order server-side)
+      const { data } = await api.post("/api/order/create", payload);
+      return data?.order; // contains razorpayOrderId, pending status
+    }
   }
-}
 
+  async function startOnlinePayment(razorMeta, appOrder) {
+    const loaded = await loadRazorpay();
+    if (!loaded) throw new Error("Razorpay SDK failed to load");
 
-async function startOnlinePayment(razorMeta, appOrder) {
-  const loaded = await loadRazorpay();
-  if (!loaded) throw new Error("Razorpay SDK failed to load");
+    const { id: razorpayOrderId, amount, currency } = razorMeta || {};
+    if (!razorpayOrderId) throw new Error("Failed to initialize payment");
 
-  const { id: razorpayOrderId, amount, currency } = razorMeta || {};
-  if (!razorpayOrderId) throw new Error("Failed to initialize payment");
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // ✅ Fixed for Vite
+      amount: String(amount),
+      currency: currency || "INR",
+      name: "Country Kitchen",
+      description: `Payment for order ${appOrder._id}`,
+      order_id: razorpayOrderId,
+      handler: async function (response) {
+        try {
+          await api.post("/api/order/verify-payment", {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+          toast.success("Payment successful. Order placed!");
+          dispatch(clearCart());
+          navigate("/orders", { replace: true });
+        } catch (e) {
+          toast.error(e?.response?.data?.message || "Payment verification failed");
+        }
+      },
+      modal: { ondismiss: function () { toast("Payment cancelled"); } },
+    };
 
-  const options = {
-    key: process.env.REACT_APP_RAZORPAY_KEY_ID || import.meta.env.VITE_RAZORPAY_KEY_ID, // or supply from backend
-    amount: String(amount),
-    currency: currency || "INR",
-    name: "Country Kitchen",
-    description: `Payment for order ${appOrder._id}`,
-    order_id: razorpayOrderId,
-    handler: async function (response) {
-      try {
-        await api.post("/api/order/verify-payment", {
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_signature: response.razorpay_signature,
-        });
-        toast.success("Payment successful. Order placed!");
-        dispatch(clearCart());
-        navigate("/orders", { replace: true });
-      } catch (e) {
-        toast.error(e?.response?.data?.message || "Payment verification failed");
-      }
-    },
-    modal: { ondismiss: function () { toast("Payment cancelled"); } },
-  };
-
-  const rzp = new window.Razorpay(options);
-  rzp.open();
-}
-
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  }
 
   async function handlePlaceOrder() {
-  try {
-    setPlacing(true);
-    setErr("");
-    if (!items.length) throw new Error("Cart is empty");
-    if (!deliveryAddress.address || !deliveryAddress.city || !deliveryAddress.state || !deliveryAddress.pincode) {
-      throw new Error("Please complete delivery address");
-    }
+    try {
+      setPlacing(true);
+      setErr("");
+      if (!items.length) throw new Error("Cart is empty");
+      if (
+        !deliveryAddress.address ||
+        !deliveryAddress.city ||
+        !deliveryAddress.state ||
+        !deliveryAddress.pincode
+      ) {
+        throw new Error("Please complete delivery address");
+      }
 
-    if (paymentMethod === "cod") {
-      const order = await createAppOrder("cod");
-      toast.success("Order placed (COD). Pay full amount on delivery");
-      dispatch(clearCart());
-      navigate("/orders", { replace: true });
-    } else {
-      // Online path: createOrder returns both order and razorpay metadata
-      const res = await api.post("/api/order/create", {
-        items: items.map((it) => ({
-          itemId: it._id,
-          quantity: Number(it.quantity),
-          price: Number(it.price),
-        })),
-        deliveryAddress,
-        totalAmount: Number(total),
-      });
-      const { order, id, amount, currency } = res?.data || {};
-      await startOnlinePayment({ id, amount, currency }, order);
+      if (paymentMethod === "cod") {
+        const order = await createAppOrder("cod");
+        toast.success("Order placed (COD). Pay full amount on delivery");
+        dispatch(clearCart());
+        navigate("/orders", { replace: true });
+      } else {
+        // Online path: createOrder returns both order and razorpay metadata
+        const res = await api.post("/api/order/create", {
+          items: items.map((it) => ({
+            itemId: it._id,
+            quantity: Number(it.quantity),
+            price: Number(it.price),
+          })),
+          deliveryAddress,
+          totalAmount: Number(total),
+        });
+        const { order, id, amount, currency } = res?.data || {};
+        await startOnlinePayment({ id, amount, currency }, order);
+      }
+    } catch (e) {
+      setErr(e?.message || "Failed to place order");
+    } finally {
+      setPlacing(false);
     }
-  } catch (e) {
-    setErr(e?.message || "Failed to place order");
-  } finally {
-    setPlacing(false);
   }
-}
-
 
   return (
     <div className="min-h-screen bg-[#F1FAEE] flex items-center justify-center px-4">
@@ -146,13 +148,22 @@ async function startOnlinePayment(razorMeta, appOrder) {
               <p className="text-[#457B9D]">No items in cart.</p>
             ) : (
               items.map((ci) => (
-                <div key={ci._id} className="flex items-center gap-3 border border-[#A8DADC] rounded-lg p-3">
-                  <img src={ci.image} alt={ci.name} className="h-12 w-12 rounded object-cover" />
+                <div
+                  key={ci._id}
+                  className="flex items-center gap-3 border border-[#A8DADC] rounded-lg p-3"
+                >
+                  <img
+                    src={ci.image}
+                    alt={ci.name}
+                    className="h-12 w-12 rounded object-cover"
+                  />
                   <div className="flex-1">
                     <p className="font-medium text-[#1D3557]">{ci.name}</p>
                     <p className="text-sm text-[#457B9D]">Qty: {ci.quantity}</p>
                   </div>
-                  <p className="font-semibold text-[#E63946]">₹{(ci.price * ci.quantity).toFixed(2)}</p>
+                  <p className="font-semibold text-[#E63946]">
+                    ₹{(ci.price * ci.quantity).toFixed(2)}
+                  </p>
                 </div>
               ))
             )}
@@ -163,7 +174,10 @@ async function startOnlinePayment(razorMeta, appOrder) {
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-[#A8DADC] space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="font-bold text-2xl text-[#1D3557]">Order Summary</h2>
-            <Link to="/" className="text-[#457B9D] hover:underline text-sm font-medium">
+            <Link
+              to="/"
+              className="text-[#457B9D] hover:underline text-sm font-medium"
+            >
               Continue shopping
             </Link>
           </div>
@@ -186,7 +200,9 @@ async function startOnlinePayment(razorMeta, appOrder) {
 
           {/* Address */}
           <div>
-            <h3 className="font-semibold mb-2 text-[#1D3557]">Delivery Address</h3>
+            <h3 className="font-semibold mb-2 text-[#1D3557]">
+              Delivery Address
+            </h3>
             <AddressForm initial={deliveryAddress} onUpdate={setDeliveryAddress} />
           </div>
 
@@ -196,7 +212,9 @@ async function startOnlinePayment(razorMeta, appOrder) {
               type="button"
               onClick={() => setPaymentMethod("online")}
               className={`flex-1 py-2 rounded-lg font-semibold ${
-                paymentMethod === "online" ? "bg-[#457B9D] text-white" : "bg-gray-100 text-[#1D3557]"
+                paymentMethod === "online"
+                  ? "bg-[#457B9D] text-white"
+                  : "bg-gray-100 text-[#1D3557]"
               }`}
             >
               Online
@@ -205,7 +223,9 @@ async function startOnlinePayment(razorMeta, appOrder) {
               type="button"
               onClick={() => setPaymentMethod("cod")}
               className={`flex-1 py-2 rounded-lg font-semibold ${
-                paymentMethod === "cod" ? "bg-[#E63946] text-white" : "bg-gray-100 text-[#1D3557]"
+                paymentMethod === "cod"
+                  ? "bg-[#E63946] text-white"
+                  : "bg-gray-100 text-[#1D3557]"
               }`}
             >
               COD
@@ -219,11 +239,17 @@ async function startOnlinePayment(razorMeta, appOrder) {
             disabled={items.length === 0 || placing}
             className="w-full rounded-lg bg-[#1D3557] hover:bg-[#457B9D] text-white font-semibold py-3 disabled:opacity-60"
           >
-            {placing ? "Processing..." : paymentMethod === "cod" ? "Place COD Order" : "Go to Payment"}
+            {placing
+              ? "Processing..."
+              : paymentMethod === "cod"
+              ? "Place COD Order"
+              : "Go to Payment"}
           </button>
 
           {err && (
-            <div className="mt-2 text-sm text-[#E63946] bg-red-50 border border-[#E63946] p-2 rounded">{err}</div>
+            <div className="mt-2 text-sm text-[#E63946] bg-red-50 border border-[#E63946] p-2 rounded">
+              {err}
+            </div>
           )}
         </div>
       </div>

@@ -122,9 +122,10 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({ message: "Missing payment details" });
     }
 
+ 
     if (!process.env.RAZORPAY_KEY_SECRET) {
-      return res.status(503).json({ message: "Payment verification unavailable" });
-    }
+  return res.status(503).json({ message: "Payment verification unavailable" });
+}
 
     // Generate signature and verify
     const body = razorpay_order_id + "|" + razorpay_payment_id;

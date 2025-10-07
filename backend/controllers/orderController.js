@@ -1,4 +1,4 @@
-// backend/controllers/orderController.js
+// backend/controllers/orderController.js - FIXED VERSION
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import Order from "../models/orderModel.js";
@@ -8,23 +8,29 @@ import Item from "../models/itemModel.js";
 import { sendOtpMail } from "../utils/mail.js";
 import mongoose from "mongoose";
 
-// Initialize Razorpay with lazy loading
+// Initialize Razorpay instance once at startup
 let razorpayInstance = null;
 
-function getRazorpayInstance() {
-  if (razorpayInstance) return razorpayInstance;
-// backend/controllers/orderController.js (Lines 14-15)
-const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
+function initializeRazorpay() {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
   
-  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-    console.warn("⚠️ Razorpay keys missing. Online payments disabled.");
+  console.log("🔍 Razorpay Configuration Check:");
+  console.log("- Key ID present:", !!keyId);
+  console.log("- Key Secret present:", !!keySecret);
+  console.log("- Key ID value:", keyId ? `${keyId.substring(0, 8)}...` : "MISSING");
+  
+  if (!keyId || !keySecret) {
+    console.error("❌ CRITICAL: Razorpay keys missing in environment variables");
+    console.error("- RAZORPAY_KEY_ID:", keyId || "NOT SET");
+    console.error("- RAZORPAY_KEY_SECRET:", keySecret ? "SET" : "NOT SET");
     return null;
   }
   
   try {
     razorpayInstance = new Razorpay({
-      key_id: RAZORPAY_KEY_ID,
-      key_secret: RAZORPAY_KEY_SECRET,
+      key_id: keyId,
+      key_secret: keySecret,
     });
     console.log("✅ Razorpay initialized successfully");
     return razorpayInstance;
@@ -34,9 +40,10 @@ const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
   }
 }
 
-const makeOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+// Initialize on module load
+const razorpay = initializeRazorpay();
 
-// ----------------- CONTROLLERS -----------------
+const makeOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // Create Order (Online Payment)
 export const createOrder = async (req, res) => {
@@ -46,6 +53,7 @@ export const createOrder = async (req, res) => {
 
     console.log("📦 Creating order:", { userId, itemCount: items?.length, totalAmount });
 
+    // Validate inputs
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Items are required" });
     }
@@ -54,28 +62,42 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Valid total amount required" });
     }
 
-    // Get Razorpay instance
-    const razorpay = getRazorpayInstance();
-    
+    // Check if Razorpay is initialized
     if (!razorpay) {
-      console.error("❌ Razorpay not available");
+      console.error("❌ Razorpay not initialized - check environment variables");
       return res.status(503).json({ 
-        message: "Online payment service unavailable. Please use COD or check server configuration.",
+        message: "Payment service unavailable. Please contact support or try COD.",
+        error: "Razorpay configuration missing",
         useCodeInstead: true
       });
     }
 
     // Create Razorpay order
+    const amountInPaise = Math.round(Number(totalAmount) * 100);
     const options = {
-      amount: Math.round(Number(totalAmount) * 100), // Convert to paise
+      amount: amountInPaise,
       currency: "INR",
-      receipt: `order_${Date.now()}`,
-      notes: { userId, itemCount: items.length },
+      receipt: `rcpt_${Date.now()}`,
+      notes: { 
+        userId: userId.toString(),
+        itemCount: items.length 
+      },
     };
 
-    console.log("💳 Creating Razorpay order:", options);
-    const razorpayOrder = await razorpay.orders.create(options);
-    console.log("✅ Razorpay order created:", razorpayOrder.id);
+    console.log("💳 Creating Razorpay order with options:", JSON.stringify(options, null, 2));
+    
+    let razorpayOrder;
+    try {
+      razorpayOrder = await razorpay.orders.create(options);
+      console.log("✅ Razorpay order created:", razorpayOrder.id);
+    } catch (rzpError) {
+      console.error("❌ Razorpay order creation failed:", rzpError);
+      return res.status(502).json({
+        message: "Payment gateway error. Please try again or use COD.",
+        error: rzpError.message,
+        useCodeInstead: true
+      });
+    }
 
     // Create order in database
     const order = new Order({
@@ -95,12 +117,15 @@ export const createOrder = async (req, res) => {
     await order.save();
     console.log("✅ Order saved to database:", order._id);
 
+    // Return complete response for frontend
     return res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      order: order,
+      // Razorpay details for checkout
       id: razorpayOrder.id,
       currency: razorpayOrder.currency,
       amount: razorpayOrder.amount,
-      order,
-      message: "Order created successfully"
     });
   } catch (error) {
     console.error("❌ Create order error:", error);
@@ -122,20 +147,25 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({ message: "Missing payment details" });
     }
 
- 
-    if (!process.env.RAZORPAY_KEY_SECRET) {
-  return res.status(503).json({ message: "Payment verification unavailable" });
-}
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      console.error("❌ CRITICAL: RAZORPAY_KEY_SECRET not found during verification");
+      return res.status(503).json({ message: "Payment verification unavailable" });
+    }
 
     // Generate signature and verify
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const generated_signature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .createHmac("sha256", keySecret)
       .update(body)
       .digest("hex");
 
+    console.log("🔐 Signature comparison:");
+    console.log("- Received:", razorpay_signature);
+    console.log("- Generated:", generated_signature);
+
     if (generated_signature !== razorpay_signature) {
-      console.error("❌ Signature mismatch");
+      console.error("❌ Signature mismatch - payment verification failed");
       return res.status(400).json({ message: "Payment verification failed" });
     }
 
@@ -152,9 +182,10 @@ export const verifyPayment = async (req, res) => {
     order.paidAt = new Date();
     await order.save();
 
-    console.log("✅ Payment verified successfully");
+    console.log("✅ Payment verified successfully for order:", order._id);
 
     return res.status(200).json({ 
+      success: true,
       message: "Payment verified successfully", 
       order 
     });
@@ -167,7 +198,7 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-// Create COD Order
+// Create COD Order (rest of the code remains the same)
 export const createCodOrder = async (req, res) => {
   try {
     const userId = req.userId;
@@ -200,6 +231,7 @@ export const createCodOrder = async (req, res) => {
     console.log("✅ COD order created:", order._id);
 
     return res.status(201).json({ 
+      success: true,
       message: "COD order placed successfully", 
       order 
     });
@@ -212,6 +244,7 @@ export const createCodOrder = async (req, res) => {
   }
 };
 
+// ... (rest of the existing functions remain unchanged)
 // Get Current Order
 export const getCurrentOrder = async (req, res) => {
   try {

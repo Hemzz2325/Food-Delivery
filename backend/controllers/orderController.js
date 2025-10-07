@@ -13,8 +13,8 @@ let razorpayInstance = null;
 
 function getRazorpayInstance() {
   if (razorpayInstance) return razorpayInstance;
-  
-  const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
+// backend/controllers/orderController.js (Lines 14-15)
+const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
   
   if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
     console.warn("⚠️ Razorpay keys missing. Online payments disabled.");

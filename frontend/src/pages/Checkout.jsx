@@ -1,4 +1,4 @@
-// frontend/src/pages/Checkout.jsx - FIXED VERSION
+// frontend/src/pages/Checkout.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -6,62 +6,43 @@ import { clearCart } from "../redux/userSlice";
 import api from "../lib/api";
 import toast from "react-hot-toast";
 
-// Robust Razorpay loader with error handling
-let razorpayPromise = null;
-function loadRazorpaySDK() {
-  if (window.Razorpay && typeof window.Razorpay === "function") {
-    console.log("✅ Razorpay already loaded");
-    return Promise.resolve(true);
-  }
-  
-  if (razorpayPromise) {
-    console.log("⏳ Razorpay loading in progress...");
-    return razorpayPromise;
-  }
+// Razorpay SDK loader (idempotent and resilient)
+let rzpLoadPromise = null;
+async function loadRazorpaySDK() {
+  if (window.Razorpay && typeof window.Razorpay === "function") return true;
 
-  console.log("📦 Loading Razorpay SDK...");
-  razorpayPromise = new Promise((resolve) => {
+  if (rzpLoadPromise) return rzpLoadPromise;
+
+  rzpLoadPromise = new Promise((resolve) => {
     const src = "https://checkout.razorpay.com/v1/checkout.js";
     const existing = document.querySelector(`script[src="${src}"]`);
-    
+
+    const onLoad = () => resolve(true);
+    const onError = () => resolve(false);
+
     if (existing) {
-      console.log("📦 Razorpay script tag exists, waiting for load...");
-      existing.addEventListener("load", () => {
-        console.log("✅ Razorpay loaded from existing script");
-        resolve(true);
-      });
-      existing.addEventListener("error", () => {
-        console.error("❌ Razorpay failed to load from existing script");
-        resolve(false);
-      });
-      // Check if already loaded
-      if (window.Razorpay && typeof window.Razorpay === "function") {
-        resolve(true);
-      }
+      existing.addEventListener("load", onLoad, { once: true });
+      existing.addEventListener("error", onError, { once: true });
+      // If already present and Razorpay available, resolve immediately
+      if (window.Razorpay && typeof window.Razorpay === "function") resolve(true);
       return;
     }
 
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
-      console.log("✅ Razorpay SDK loaded successfully");
-      resolve(true);
-    };
-    script.onerror = () => {
-      console.error("❌ Failed to load Razorpay SDK");
-      toast.error("Failed to load payment gateway. Check your internet connection.");
-      resolve(false);
-    };
-    document.body.appendChild(script);
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = onLoad;
+    s.onerror = onError;
+    document.body.appendChild(s);
   });
 
-  return razorpayPromise;
+  return rzpLoadPromise;
 }
 
 export default function Checkout() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
   const cart = useSelector((s) => s.user.cart) || [];
 
   const [placing, setPlacing] = useState(false);
@@ -82,17 +63,19 @@ export default function Checkout() {
   const delivery = useMemo(() => (subtotal > 499 ? 0 : 29), [subtotal]);
   const total = useMemo(() => subtotal + delivery, [subtotal, delivery]);
 
-  // Get Razorpay key from environment
   const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-  // Debug: Log configuration on mount
   useEffect(() => {
-    console.log("🔍 Checkout Configuration:");
-    console.log("- Backend URL:", import.meta.env.VITE_SERVER_URL);
-    console.log("- Razorpay Key ID:", razorpayKeyId ? `${razorpayKeyId.substring(0, 8)}...` : "NOT SET");
-    console.log("- Cart items:", items.length);
-    console.log("- Total amount:", total);
-  }, []);
+    // Light diagnostics in dev
+    if (import.meta.env.DEV) {
+      console.log("Checkout env:", {
+        server: import.meta.env.VITE_SERVER_URL,
+        key: razorpayKeyId ? razorpayKeyId.slice(0, 8) + "..." : "NOT SET",
+        items: items.length,
+        total,
+      });
+    }
+  }, [items.length, total, razorpayKeyId]);
 
   async function createAppOrder(mode) {
     const payload = {
@@ -105,103 +88,81 @@ export default function Checkout() {
       totalAmount: Number(total),
     };
 
-    console.log("📦 Creating order:", mode, payload);
-
     if (mode === "cod") {
       const { data } = await api.post("/api/order/cod", payload);
-      console.log("✅ COD order created:", data);
-      return data?.order;
+      return data; // expect { order: {...} } from backend
     } else {
       const { data } = await api.post("/api/order/create", payload);
-      console.log("✅ Online order created:", data);
-      return data;
+      return data; // expect { key, order } OR compatible shape
     }
   }
 
-  async function startOnlinePayment(orderResponse) {
-    console.log("💳 Starting online payment with response:", orderResponse);
-
-    // Validate Razorpay key
+  async function openRazorpayCheckout(orderResp) {
     if (!razorpayKeyId) {
-      const msg = "Payment configuration missing. Please contact support.";
-      console.error("❌", msg);
+      const msg = "Payment configuration missing. Contact support.";
       toast.error(msg);
       throw new Error(msg);
     }
 
-    // Load Razorpay SDK
     const loaded = await loadRazorpaySDK();
     if (!loaded || !window.Razorpay || typeof window.Razorpay !== "function") {
-      const msg = "Payment gateway failed to load. Please check your internet connection and try again.";
-      console.error("❌", msg);
+      const msg = "Payment gateway failed to load. Try again.";
       toast.error(msg);
       throw new Error(msg);
     }
 
-    // Extract Razorpay order details
-    const razorpayOrderId = orderResponse?.id || orderResponse?.order?.razorpayOrderId;
-    const amount = orderResponse?.amount || Math.round(Number(total) * 100);
-    const currency = orderResponse?.currency || "INR";
-    const dbOrder = orderResponse?.order;
+    // Normalize backend response
+    const rpOrder =
+      orderResp?.order?.id ? orderResp.order :
+      orderResp?.id ? orderResp :
+      null;
 
-    console.log("💳 Payment details:", {
-      razorpayOrderId,
-      amount,
-      currency,
-      keyId: razorpayKeyId
-    });
-
-    if (!razorpayOrderId) {
+    if (!rpOrder?.id) {
       const msg = "Invalid order response from server";
-      console.error("❌", msg, orderResponse);
       toast.error(msg);
       throw new Error(msg);
     }
+
+    const amount = rpOrder.amount ?? Math.round(Number(total) * 100);
+    const currency = rpOrder.currency ?? "INR";
 
     const options = {
-      key: razorpayKeyId,
+      key: orderResp?.key || razorpayKeyId,
       amount: String(amount),
-      currency: currency,
+      currency,
       name: "Country Kitchen",
-      description: `Payment for order ${dbOrder?._id || ''}`,
-      order_id: razorpayOrderId,
+      description: `Payment for order ${rpOrder.receipt || ""}`,
+      order_id: rpOrder.id,
       handler: async function (response) {
-        console.log("✅ Payment successful:", response);
         try {
-          const verifyRes = await api.post("/api/order/verify-payment", {
+          await api.post("/api/order/verify-payment", {
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
             razorpay_signature: response.razorpay_signature,
           });
-          
-          console.log("✅ Payment verified:", verifyRes.data);
           toast.success("Payment successful! Order placed.");
           dispatch(clearCart());
           navigate("/orders", { replace: true });
         } catch (e) {
-          console.error("❌ Payment verification failed:", e);
           const msg = e?.response?.data?.message || "Payment verification failed";
           toast.error(msg);
+        } finally {
+          setPlacing(false);
         }
       },
       modal: {
         ondismiss: function () {
-          console.log("⚠️ Payment cancelled by user");
           toast("Payment cancelled");
           setPlacing(false);
         },
       },
-      theme: {
-        color: "#EF233C"
-      },
+      theme: { color: "#EF233C" },
     };
 
-    console.log("💳 Opening Razorpay checkout with options:", options);
     const rzp = new window.Razorpay(options);
-    
-    rzp.on('payment.failed', function (response) {
-      console.error("❌ Payment failed:", response.error);
-      toast.error(`Payment failed: ${response.error.description}`);
+
+    rzp.on("payment.failed", function (resp) {
+      toast.error(resp?.error?.description || "Payment failed");
       setPlacing(false);
     });
 
@@ -213,30 +174,24 @@ export default function Checkout() {
       setPlacing(true);
       setErr("");
 
-      // Validate cart
-      if (!items.length) {
-        throw new Error("Cart is empty");
-      }
+      if (!items.length) throw new Error("Cart is empty");
 
-      // Validate address
-      if (!deliveryAddress.address || !deliveryAddress.city || 
-          !deliveryAddress.state || !deliveryAddress.pincode) {
+      const { address, city, state, pincode } = deliveryAddress || {};
+      if (!address || !city || !state || !pincode) {
         throw new Error("Please complete delivery address");
       }
 
-      console.log("🚀 Placing order:", paymentMethod);
-
       if (paymentMethod === "cod") {
-        const order = await createAppOrder("cod");
-        toast.success("Order placed (COD). Pay full amount on delivery");
+        const codResp = await createAppOrder("cod");
+        toast.success("Order placed (COD). Pay on delivery.");
         dispatch(clearCart());
         navigate("/orders", { replace: true });
-      } else {
-        const orderResponse = await createAppOrder("online");
-        await startOnlinePayment(orderResponse);
+        return;
       }
+
+      const orderResp = await createAppOrder("online");
+      await openRazorpayCheckout(orderResp);
     } catch (e) {
-      console.error("❌ Order placement error:", e);
       const msg = e?.response?.data?.message || e?.message || "Failed to place order";
       setErr(msg);
       toast.error(msg);
@@ -305,8 +260,8 @@ export default function Checkout() {
               type="button"
               onClick={() => setPaymentMethod("online")}
               className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                paymentMethod === "online" 
-                  ? "bg-[#457B9D] text-white" 
+                paymentMethod === "online"
+                  ? "bg-[#457B9D] text-white"
                   : "bg-gray-100 text-[#1D3557] hover:bg-gray-200"
               }`}
             >
@@ -316,8 +271,8 @@ export default function Checkout() {
               type="button"
               onClick={() => setPaymentMethod("cod")}
               className={`flex-1 py-2 rounded-lg font-semibold transition ${
-                paymentMethod === "cod" 
-                  ? "bg-[#E63946] text-white" 
+                paymentMethod === "cod"
+                  ? "bg-[#E63946] text-white"
                   : "bg-gray-100 text-[#1D3557] hover:bg-gray-200"
               }`}
             >
@@ -332,10 +287,10 @@ export default function Checkout() {
             disabled={items.length === 0 || placing}
             className="w-full rounded-lg bg-[#1D3557] hover:bg-[#457B9D] text-white font-semibold py-3 disabled:opacity-60 disabled:cursor-not-allowed transition"
           >
-            {placing 
-              ? "Processing..." 
-              : paymentMethod === "cod" 
-                ? "Place COD Order" 
+            {placing
+              ? "Processing..."
+              : paymentMethod === "cod"
+                ? "Place COD Order"
                 : "Proceed to Payment"}
           </button>
 

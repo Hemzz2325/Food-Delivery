@@ -400,75 +400,93 @@ const UserDashboard = () => {
       });
 
       // Load SDK once
-      const ok = await loadRazorpayOnce();
-      if (!ok || !window.Razorpay || typeof window.Razorpay !== "function") {
-        alert("Unable to load Razorpay. Check network/ad-blockers and try again.");
-        setIsProcessingPayment(false);
-        return;
-      }
+     // Load SDK once
+const ok = await loadRazorpayOnce();
+if (!ok || !window.Razorpay || typeof window.Razorpay !== "function") {
+  alert("Unable to load Razorpay. Check network/ad-blockers and try again.");
+  setIsProcessingPayment(false);
+  return;
+}
 
-      // Validate server fields
-      const rzpOrderId = data?.id || data?.razorpayOrder?.id || data?.order?.razorpayOrderId;
-      const amountPaise = Number(data?.amount || Math.round(Number(cartTotal) * 100));
-      const currency = data?.currency || "INR";
-      const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+// Validate server fields
+const rzpOrderId = data?.id || data?.razorpayOrder?.id || data?.order?.razorpayOrderId;
 
-      if (!keyId) {
-        alert("Payment key missing. Set VITE_RAZORPAY_KEY_ID.");
-        setIsProcessingPayment(false);
-        return;
-      }
-      if (!rzpOrderId || !amountPaise) {
-        alert("Invalid order response from server.");
-        setIsProcessingPayment(false);
-        return;
-      }
+// ✅ Fixed amount handling — always consistent
+let amountPaise = 0;
+if (typeof data?.amount === "number") {
+  // Backend provided a number, assume it's already in paise
+  amountPaise = data.amount;
+} else if (data?.amount && !isNaN(Number(data.amount))) {
+  // If string, parse and check
+  const parsed = Number(data.amount);
+  amountPaise = parsed > 0 && parsed <= 100000000 ? parsed : Math.round(Number(cartTotal) * 100);
+} else {
+  // Fallback — frontend calculation in paise
+  amountPaise = Math.round(Number(cartTotal) * 100);
+}
 
-      const options = {
-        key: keyId,
-        amount: amountPaise,
-        currency,
-        name: "Country Kitchen",
-        description: "Food Order Payment",
-        order_id: rzpOrderId,
-        prefill: {
-          name: fullName || currentOrder?.userName || "",
-          email: userData?.email || currentOrder?.userEmail || "",
-          contact: phone || currentOrder?.userPhone || "",
+console.log("✅ Using amount for Razorpay:", amountPaise);
+
+const currency = data?.currency || "INR";
+const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+if (!keyId) {
+  alert("Payment key missing. Set VITE_RAZORPAY_KEY_ID.");
+  setIsProcessingPayment(false);
+  return;
+}
+if (!rzpOrderId || !amountPaise) {
+  alert("Invalid order response from server.");
+  setIsProcessingPayment(false);
+  return;
+}
+
+const options = {
+  key: keyId,
+  amount: amountPaise,
+  currency,
+  name: "Country Kitchen",
+  description: "Food Order Payment",
+  order_id: rzpOrderId,
+  prefill: {
+    name: fullName || currentOrder?.userName || "",
+    email: userData?.email || currentOrder?.userEmail || "",
+    contact: phone || currentOrder?.userPhone || "",
+  },
+  theme: { color: "#ff4d2d" },
+  handler: async (response) => {
+    try {
+      await axios.post(
+        `${serverUrl}/api/order/verify-payment`,
+        {
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
         },
-        theme: { color: "#ff4d2d" },
-        handler: async (response) => {
-          try {
-            await axios.post(
-              `${serverUrl}/api/order/verify-payment`,
-              {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              },
-              {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
-              }
-            );
-            dispatch(clearCart());
-            setShowCart(false);
-            await fetchOrders();
-            alert("Payment successful!");
-          } catch (error) {
-            console.error("Payment verification failed:", error);
-            alert("Payment verification failed.");
-          } finally {
-            setIsProcessingPayment(false);
-          }
-        },
-        modal: {
-          ondismiss: () => setIsProcessingPayment(false),
-        },
-      };
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+        }
+      );
+      dispatch(clearCart());
+      setShowCart(false);
+      await fetchOrders();
+      alert("Payment successful!");
+    } catch (error) {
+      console.error("Payment verification failed:", error);
+      alert("Payment verification failed.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  },
+  modal: {
+    ondismiss: () => setIsProcessingPayment(false),
+  },
+};
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+const rzp = new window.Razorpay(options);
+rzp.open();
+
     } catch (error) {
       console.error("Checkout error:", error);
       alert("Failed to initiate payment.");

@@ -89,7 +89,8 @@ const Navbar = ({ cartItemsCount = 0 }) => {
           <div className="flex items-center gap-2 border-r pr-3 text-gray-600 shrink-0">
             <FaMapMarkerAlt className="text-[#EF233C]" size={20} />
             <span className="truncate text-sm" title={displayLocation}>
-              {displayLocation}
+              //{displayLocation}
+              {Davangere}
             </span>
           </div>
 
